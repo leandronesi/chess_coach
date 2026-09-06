@@ -10,9 +10,13 @@ import { ForgotPassword } from "./pages/auth/ForgotPassword";
 import { UpdatePassword } from "./pages/auth/UpdatePassword";
 import { Onboarding } from "./pages/auth/Onboarding";
 import { OnboardingWaiting } from "./pages/auth/OnboardingWaiting";
-import { PatternHome } from "./pages/PatternHome";
 import { PatternProgress } from "./pages/PatternProgress";
 const PatternPreview = import.meta.env.DEV ? lazy(() => import("./pages/dev/PatternPreview")) : null;
+const LezionePreview = import.meta.env.DEV ? lazy(() => import("./pages/dev/LezionePreview")) : null;
+import { Apertura } from "./pages/lezione/Apertura";
+import { Guardo } from "./pages/lezione/Guardo";
+import { Gioco } from "./pages/lezione/Gioco";
+import { Chiusura } from "./pages/lezione/Chiusura";
 import { Landing } from "./pages/Landing";
 import { PatternLibrary } from "./pages/PatternLibrary";
 import { PatternPractice } from "./pages/PatternPractice";
@@ -75,7 +79,7 @@ function HomeGate() {
   if (profile.onboarding_state !== "ready") {
     return <Navigate to="/onboarding/waiting" replace />;
   }
-  return <Navigate to="/tavolo" replace />;
+  return <Navigate to="/lezione" replace />;
 }
 
 /** Wrapper per route che richiedono utente loggato (qualsiasi stato profile). */
@@ -149,9 +153,14 @@ export function App() {
           {/* Home — primo ingresso in Stanza, ritorni direttamente al Tavolo */}
           <Route path="/" element={<HomeGate />} />
 
-          {/* Il Tavolo — la superficie operativa, raggiunta dalla Stanza */}
-          <Route path="/tavolo" element={<RequireReadyProfile><AppShell><PatternHome /></AppShell></RequireReadyProfile>} />
+          {/* La lezione — percorso principale (docs/GOAL_ESPERIENZA.md). /tavolo e' il vecchio ingresso, ora un redirect. */}
+          <Route path="/tavolo" element={<Navigate to="/lezione" replace />} />
+          <Route path="/lezione" element={<RequireReadyProfile><Apertura /></RequireReadyProfile>} />
+          <Route path="/lezione/guardo/:n" element={<RequireReadyProfile><Guardo /></RequireReadyProfile>} />
+          <Route path="/lezione/gioco" element={<RequireReadyProfile><Gioco /></RequireReadyProfile>} />
+          <Route path="/lezione/fine" element={<RequireReadyProfile><Chiusura /></RequireReadyProfile>} />
           {PatternPreview && <Route path="/dev/patterns" element={<Suspense fallback={<div>Caricamento…</div>}><PatternPreview /></Suspense>} />}
+          {LezionePreview && <Route path="/dev/lezione" element={<Suspense fallback={<div>Caricamento…</div>}><LezionePreview /></Suspense>} />}
 
           {/* Account, privacy, export/delete and first-party feedback. */}
           <Route path="/settings" element={<RequireAuth><AppShell><Settings /></AppShell></RequireAuth>} />

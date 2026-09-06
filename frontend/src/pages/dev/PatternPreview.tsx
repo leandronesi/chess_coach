@@ -10,6 +10,7 @@ import { buildPatternLearning, type LearningAttempt } from "../../pipeline/patte
 import type { TrainingAttemptInput } from "../../trainingProgress";
 import type { Aggregates } from "../../pipeline/aggregate";
 import { CoachShell } from "../../components/AppShell";
+import { emptySyntheticAggregates } from "./syntheticPatterns";
 
 // Explicitly synthetic, dev-only data for visual and interaction verification.
 const games: TimingGame[] = Array.from({ length: 24 }, (_, i) => ({
@@ -25,7 +26,6 @@ const games: TimingGame[] = Array.from({ length: 24 }, (_, i) => ({
   })),
 }));
 
-const zeroPhase = { moves: 0, blunders: 0, mistakes: 0, inaccuracies: 0, blunder_pct: 0, mistake_pct: 0, inaccuracy_pct: 0, avg_cp_loss: 0 };
 const opportunities: PatternOpportunity[] = games.flatMap((game) => game.moves.map((move) => ({
   id: `${game.gameId}:${move.ply}`, gameId: game.gameId, playedAt: game.playedAt, startedAt: new Date(Date.parse(game.playedAt) - 600_000).toISOString(),
   kinds: ["narrow_choice", "time_reserve"], scope: "rapid:600:0:middlegame",
@@ -55,15 +55,11 @@ const previewAttempt: LearningAttempt = {
   id: "synthetic-attempt", anchor_key: personalPatterns.patterns[0].id, source_game_id: "synthetic-0", position_id: "synthetic-0:25",
   mode: "drill", verdict: "perfect", correct: true, used_hint: false, response_ms: 15000, created_at: "2026-08-10T12:00:00Z",
 };
-const zeroColor = { games: 0, wins: 0, draws: 0, losses: 0, win_rate: 0, avg_cp_loss: 0, blunder_pct: 0 };
-const aggregates: Aggregates = {
-  generated_at: "2026-09-05T00:00:00Z", games_analyzed: 24, player_moves_total: 96,
-  blunder_pct: 0, mistake_pct: 25, inaccuracy_pct: 0, avg_cp_loss: 37.5,
-  by_phase: { opening: zeroPhase, middlegame: zeroPhase, endgame: zeroPhase },
-  by_color: { white: zeroColor, black: zeroColor }, by_time_class: {},
-  anchors: [], weaknesses: [], timing: buildTimingReport(games),
+const aggregates: Aggregates = emptySyntheticAggregates({
+  games_analyzed: 24, mistake_pct: 25, avg_cp_loss: 37.5,
+  timing: buildTimingReport(games),
   personal_patterns: personalPatterns,
-};
+});
 
 export default function PatternPreview() {
   const [compared, setCompared] = useState(36);

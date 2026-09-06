@@ -1,0 +1,248 @@
+/* La Lezione — slice 2 (docs/GOAL_ESPERIENZA.md §3). Tokens from coach-shell.css.
+ * One CTA per screen, no side-stripe borders, no card-in-card. See [[tavolo-ui]]. */
+
+.lezione-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* ── Chrome (at most two controls, see scripts/ux-referee.mjs) ─────────── */
+
+.lezione-chrome {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: max(16px, env(safe-area-inset-top)) 20px 12px;
+}
+
+.lezione-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lezione-brand .coach-brand-mark {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+  padding-bottom: 4px;
+}
+
+.lezione-brand strong {
+  font: 600 20px Georgia, serif;
+  letter-spacing: -0.03em;
+}
+
+.lezione-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text);
+  flex: 0 0 auto;
+}
+
+.lezione-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--color-text-soft);
+  font-weight: 600;
+  padding-right: 8px;
+}
+
+.lezione-step {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ── Shared layout ──────────────────────────────────────────────────────── */
+
+.lezione-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.lezione-cta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-weight: 650;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.lezione-status {
+  padding: 20px;
+  font: 21px/1.4 var(--font-voice);
+  color: var(--color-text);
+}
+
+/* ── Apertura / Chiusura: one viewport, voice centered, CTA pinned low ──── */
+
+.lezione-centered {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px;
+  min-height: 0;
+}
+
+.lezione-voce-wrap {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
+.lezione-voce {
+  font: 23px/1.38 var(--font-voice);
+  color: var(--color-text);
+  text-align: left;
+  text-wrap: pretty;
+  margin: 0;
+  max-width: 36ch;
+}
+
+.lezione-voce--compact {
+  font-size: 21px;
+}
+
+.lezione-meta {
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+  margin: 0 0 18px;
+}
+
+.lezione-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+/* ── Guardo ─────────────────────────────────────────────────────────────── */
+
+.lezione-guardo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px 28px;
+}
+
+.lezione-contesto {
+  font-size: 14px;
+  color: var(--color-text-soft);
+  margin: 0;
+}
+
+.lezione-contesto strong {
+  color: var(--color-text);
+  font-weight: 650;
+  font-family: var(--font-mono);
+}
+
+/* BoardView measures its own parent and clamps to the `size` prop (430) —
+ * this wrapper only needs to center it; no width override needed here. */
+.lezione-board-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.lezione-moves {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lezione-moves-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text);
+  background: transparent;
+}
+
+.lezione-moves-btn:disabled {
+  opacity: 0.35;
+}
+
+.lezione-moves-strip {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 4px 2px;
+}
+
+.lezione-frame {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+
+.lezione-frame--now {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.lezione-verdetto {
+  font: 19px/1.4 var(--font-voice);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.lezione-livello {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* ── Gioco (segnaposto, slice 3 lo completa) ───────────────────────────── */
+
+.lezione-gioco-placeholder {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px;
+}
+
+@media (max-width: 359px) {
+  .lezione-chrome { padding-left: 12px; padding-right: 12px; }
+}

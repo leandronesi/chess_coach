@@ -16,6 +16,7 @@
 // Usage:
 //   node scripts/ux-referee.mjs                 # starts Vite on a free port, runs, exits 1 on failure
 //   node scripts/ux-referee.mjs --scenes legacy # measure the pre-lezione screens (expected red)
+//   node scripts/ux-referee.mjs --only apertura,guardo   # subset of the lezione scenes
 //   REFEREE_BASE_URL=http://127.0.0.1:5173 node scripts/ux-referee.mjs   # reuse a running server
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -58,8 +59,9 @@ const LIMITS = {
 
 const args = process.argv.slice(2);
 const sceneSet = args.includes("--scenes") ? args[args.indexOf("--scenes") + 1] : "lezione";
-const scenes = SCENES[sceneSet];
-if (!scenes) { console.error(`unknown scene set: ${sceneSet}`); process.exit(2); }
+const only = args.includes('--only') ? new Set(args[args.indexOf('--only') + 1].split(',')) : null;
+const scenes = SCENES[sceneSet]?.filter((s) => !only || only.has(s.id));
+if (!scenes?.length) { console.error(`unknown scene set or empty selection: ${sceneSet}`); process.exit(2); }
 
 const outDir = join(process.cwd(), ".local-validation", "ux-referee", sceneSet);
 mkdirSync(outDir, { recursive: true });

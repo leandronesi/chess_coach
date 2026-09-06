@@ -191,8 +191,8 @@ Ritorno funziona da telefono su dati reali e il referee e' verde.
 - [x] Fase 0: design canvas dei sei beat approvato da lnesi il 6 settembre 2026 ("mi torna, approvato, vai"; ha voluto in particolare l'orologio originale che scorre come in partita).
       Bozza del 6 settembre: https://claude.ai/code/artifact/ed05198d-7c0a-4d34-bca8-1dba8e46c5a5
 - [x] Referee UX nel repo, rosso sulle schermate attuali (prova che misura).
-- [ ] Apertura e Chiusura con memoria: una frase vera, un bottone.
-- [ ] Guardo: film, verdetto in due frasi, scacchiera intera.
+- [x] Apertura e Chiusura con memoria: una frase vera, un bottone.
+- [x] Guardo: film, verdetto in due frasi, scacchiera intera.
 - [ ] Gioco: partita contro Maia al livello obiettivo con eval bar, orologio,
       lista mosse, Ripensaci, fermata sul pattern.
 - [ ] Voce strato 2 (LLM sotto referee): solo se lnesi giudica lo strato 1 non sharp.
@@ -216,3 +216,46 @@ La verifica finale cita prove per ogni riga. Una build verde da sola non basta.
 - Il cancello su `prebuild` e in CI viene agganciato nello slice di rimozione, quando
   il percorso principale esiste: prima renderebbe rosso il branch per giorni.
 - Build verde. Nessun test aggiunto: il referee e' esso stesso la verifica.
+
+## Evidenze di implementazione, slice 2: la lezione senza il Gioco
+
+- `frontend/src/lezione/`: `lezione.ts` (selezione pura: pattern con evidenza,
+  tre momenti da partite distinte con la scelta riuscita al secondo posto,
+  modalita' "momento" quando il campione non basta, memoria dalle finestre di
+  `patternLearning`), `voce.ts` (strato 1: apertura, contesto, verdetto con il
+  perche' vero di `moveReason`, livello da `levelCompare`, chiusura, ritorno;
+  notazione italiana anche dentro le frasi del motore), `progress.ts` (una
+  lezione al giorno, per utente), `film.ts` (FEN di partenza del film letto
+  dall'analisi della partita al ply giusto; senza analisi degrada, mai inventa).
+- `frontend/src/pages/lezione/`: `LezioneShell` (chrome a due controlli, niente
+  tab), `Apertura`, `Guardo`, `Chiusura`, `Gioco` segnaposto, `lezione.css`.
+  Route `/lezione`, `/lezione/guardo/:n`, `/lezione/gioco`, `/lezione/fine`;
+  `HomeGate` porta a `/lezione`; `/tavolo` e' un redirect.
+- Anteprima `/dev/lezione?beat=...` con la posizione approvata nel canvas
+  (cavallo in e5 in presa dopo ...d6, verificata con chess.js).
+- Revisione di chi dirige, con tre correzioni prima del commit: (1) il
+  progresso veniva riletto dallo storage a ogni render, cambiando identita' a
+  lezione e momento e facendo ripartire in loop il caricamento del film dallo
+  Storage; ora si legge una volta per montaggio; (2) l'Apertura diceva "con
+  piu' di un minuto sull'orologio" da un dato che registra solo il ritmo
+  ("in pochi secondi"): la frase ora dice cio' che il ledger sa; (3) un errore
+  nel caricamento dei tentativi bloccava la lezione intera, mentre serve solo
+  alla memoria del Ritorno: ora la lezione si apre senza memoria e l'errore va
+  in console. Piu' copy: chiusura parametrica sul numero di momenti, esito
+  "ritirato" previsto per il Gioco, memoria del Ritorno con il soggetto giusto
+  per tipo di pattern, voce allineata a sinistra e bottone pieno come nel canvas.
+- Verifiche del 7 settembre 2026: Vitest 25 file, 199 test (16 nuovi);
+  Playwright 19 test (3 nuovi: percorso intero, Apertura senza scroll a 360 px,
+  Ritorno con "4 volte su 5"); referee verde su apertura, guardo, chiusura,
+  ritorno a 360/390/430; foundation 17/17; build verde. Screenshot in
+  `frontend/.local-validation/ux/slice-2/`.
+- Prima riga che legge l'utente (dati sintetici): Apertura "Eccoti. In 5 partite
+  un pezzo in presa ti e' sfuggito 4 volte."; Guardo "Domenica 30 agosto, contro
+  un 1240. Mossa 13, avevi 4:12 sull'orologio." e verdetto "Hai mosso a3 in 6
+  secondi. Il tuo cavallo in e5 era in presa. Cf3 mette al sicuro il pezzo.";
+  Chiusura "Bene cosi'. Tre momenti visti con calma."; Ritorno "Ho letto le 6
+  partite nuove. Il pezzo in presa l'hai visto 4 volte su 5."
+- Debiti riportati, non corretti: il ramo "completata oggi / Rivediamola" non
+  ha un test automatico; "Riprova" su errore di rete ricarica la pagina perche'
+  `useTavoloData` non espone un retry mirato; l'evidenziazione delle case in
+  `BoardView` e' un anello con alone, non il riempimento piatto del canvas.
