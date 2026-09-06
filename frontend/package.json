@@ -19,7 +19,9 @@
     "preview": "vite preview",
     "setup:maia": "node scripts/setup-maia-model.mjs",
     "test:database": "node scripts/verify-learning-database.mjs",
-    "preflight:remote": "node scripts/verify-remote-schema.mjs"
+    "preflight:remote": "node scripts/verify-remote-schema.mjs",
+    "referee": "node scripts/ux-referee.mjs",
+    "referee:legacy": "node scripts/ux-referee.mjs --scenes legacy"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
