@@ -13,6 +13,7 @@ import { downloadJson, analysisPath } from "../../auth/storage";
 import type { GameAnalysis } from "../../pipeline/analyze";
 import { BoardView } from "../../components/BoardView";
 import { getCurrentTheme } from "../../theme";
+import { getMaiaEngine } from "../../pipeline/maia/maiaEngine";
 import { LezioneShell } from "./LezioneShell";
 import { tr } from "../../i18n/lang";
 import "./lezione.css";
@@ -216,6 +217,14 @@ export function Guardo() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lezione, momento, n]);
+
+  // The Gioco comes next: start loading the Maia model while the player reads the last moment.
+  useEffect(() => {
+    if (!lezione || n !== lezione.momenti.length) return;
+    getMaiaEngine().waitReady().catch((error: unknown) => {
+      console.warn("lezione: Maia non pronta durante il Guardo", error);
+    });
+  }, [lezione, n]);
 
   const filmLoader: FilmLoader = useMemo(() => {
     const userId = user?.id;

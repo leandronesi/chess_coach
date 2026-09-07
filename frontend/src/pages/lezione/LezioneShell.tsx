@@ -15,6 +15,11 @@ interface LezioneShellPassoProps {
   /** e.g. "1 di 3" — monospace, not a heading, not clickable. */
   stepLabel: string;
   children: ReactNode;
+  /** Overrides the default "Tavolo" back-link label (Gioco uses "Esci"). */
+  backLabel?: string;
+  /** When set, the back control is a button calling this instead of a Link to /lezione
+   *  (Gioco needs to save the attempt and write esitoGioco before navigating). */
+  onBack?: () => void;
 }
 
 type LezioneShellProps = LezioneShellHomeProps | LezioneShellPassoProps;
@@ -38,11 +43,19 @@ export function LezioneShell(props: LezioneShellProps) {
               <BookOpen size={24} strokeWidth={1.8} aria-hidden="true" />
             </Link>
           </>
+        ) : props.onBack ? (
+          <>
+            <button type="button" className="lezione-back" onClick={props.onBack}>
+              <ChevronLeft size={24} strokeWidth={1.8} aria-hidden="true" />
+              <span>{props.backLabel ?? tr("Tavolo", "Table")}</span>
+            </button>
+            <span className="lezione-step">{props.stepLabel}</span>
+          </>
         ) : (
           <>
             <Link to="/lezione" className="lezione-back">
               <ChevronLeft size={24} strokeWidth={1.8} aria-hidden="true" />
-              <span>{tr("Tavolo", "Table")}</span>
+              <span>{props.backLabel ?? tr("Tavolo", "Table")}</span>
             </Link>
             <span className="lezione-step">{props.stepLabel}</span>
           </>

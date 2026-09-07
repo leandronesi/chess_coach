@@ -49,7 +49,7 @@ const PIECE_VALUES: Record<string, number> = {
 // Called at render time so getLang() always reads the current language.
 // ────────────────────────────────────────────────────────────────────────────
 
-function pieceName(pieceType: string): string {
+export function pieceName(pieceType: string): string {
   const lang = getLang();
   const names: Record<string, { it: string; en: string }> = {
     p: { it: "pedone",  en: "pawn"   },

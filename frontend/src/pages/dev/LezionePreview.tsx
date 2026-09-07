@@ -14,12 +14,16 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Chess } from "chess.js";
 import { assessDecisionTiming } from "../../pipeline/decisionTiming";
 import { buildPersonalPatternReport, type PatternOpportunity } from "../../pipeline/personalPatterns";
 import type { PatternLearning } from "../../pipeline/patternLearning";
 import type { GameAnalysis } from "../../pipeline/analyze";
+import type { BatchEvalResult } from "../../pipeline/stockfishWorker";
 import type { FilmLoader } from "../../lezione/film";
+import type { PartitaEngineDeps } from "../../lezione/usePartita";
 import { buildLezione } from "../../lezione/lezione";
+import type { LezioneEsitoGioco } from "../../lezione/progress";
 import { emptySyntheticAggregates } from "./syntheticPatterns";
 import { AperturaView } from "../lezione/Apertura";
 import { GuardoView } from "../lezione/Guardo";
@@ -116,6 +120,60 @@ const filmFixtures = new Map<string, GameAnalysis>([
 ]);
 const previewFilmLoader: FilmLoader = async (gameId) => filmFixtures.get(gameId) ?? null;
 
+// ── Fake engines for beat=gioco|fermata — never download Stockfish or Maia ──
+// (§E of the slice-3 spec). Evaluate is keyed by exact FEN: the featured
+// position (best e5f3), the position after the wrong a3, and after the good
+// e5f3, matching the exact cpLoss thresholds the spec calls for.
+const FEN_AFTER_A3 = (() => { const c = new Chess(FEATURED_FEN); c.move("a3"); return c.fen(); })();
+const FEN_AFTER_NF3 = (() => { const c = new Chess(FEATURED_FEN); c.move("Nf3"); return c.fen(); })();
+const NEUTRAL_EVAL: BatchEvalResult = { scoreCp: 0, mate: null, bestMoveUci: null, depth: 12, lines: [], pvUci: null };
+
+function firstLegalUci(fen: string): string | null {
+  try {
+    const move = new Chess(fen).moves({ verbose: true })[0];
+    return move ? `${move.from}${move.to}${move.promotion ?? ""}` : null;
+  } catch {
+    return null;
+  }
+}
+
+// This route mounts inside AuthProvider (see App.tsx) but with no session, so
+// AuthContext resets scopedStorage's activeUserId to null shortly after load —
+// the real scopedStorage would silently no-op every read/write here. A plain
+// fixed-key localStorage stand-in exercises the SAME resume logic in usePartita
+// without depending on auth state, isolated from any real account's keys.
+const PREVIEW_STORAGE_KEY = "dev-lezione-preview:partita";
+const previewPersistence = {
+  read: (): string | null => {
+    try { return window.localStorage.getItem(PREVIEW_STORAGE_KEY); } catch { return null; }
+  },
+  write: (value: string): boolean => {
+    try { window.localStorage.setItem(PREVIEW_STORAGE_KEY, value); return true; } catch { return false; }
+  },
+};
+
+// `?beat=gioco&real`: the real Stockfish worker and the real Maia model (public/maia3),
+// only the storage stays the preview's. A manual smoke check, never used by the e2e suite.
+const giocoDepsReal: PartitaEngineDeps = { persistence: previewPersistence };
+
+const giocoDeps: PartitaEngineDeps = {
+  persistence: previewPersistence,
+  evaluate: async (fen) => {
+    if (fen === FEATURED_FEN) return { ...NEUTRAL_EVAL, scoreCp: 20, bestMoveUci: "e5f3" };
+    if (fen === FEN_AFTER_A3) return { ...NEUTRAL_EVAL, scoreCp: 90 }; // cpLoss 20+90=110 >= 100 -> wrong
+    if (fen === FEN_AFTER_NF3) return { ...NEUTRAL_EVAL, scoreCp: -20 }; // cpLoss 20-20=0 -> perfect
+    return NEUTRAL_EVAL;
+  },
+  // Always resolves via Maia (source "maia_target_policy"): all the mass sits on
+  // the first legal move, so sampling is deterministic regardless of rng.
+  maiaPolicy: async (fen) => {
+    const uci = firstLegalUci(fen);
+    return { policy: uci ? { [uci]: 1 } : {} };
+  },
+  stockfishMove: async (fen) => firstLegalUci(fen),
+  rng: () => 0,
+};
+
 // ── Preview shell: walks the same beats as the real routes, driven by ?beat= ──
 
 export default function LezionePreview() {
@@ -125,10 +183,11 @@ export default function LezionePreview() {
 
   const totalMomenti = useMemo(() => lezioneApertura?.momenti.length ?? 3, []);
 
-  function goTo(nextBeat: string, nextN?: number) {
+  function goTo(nextBeat: string, nextN?: number, esito?: LezioneEsitoGioco) {
     const next = new URLSearchParams();
     next.set("beat", nextBeat);
     if (nextN != null) next.set("n", String(nextN));
+    if (esito != null) next.set("esito", esito);
     setParams(next);
   }
 
@@ -142,13 +201,18 @@ export default function LezionePreview() {
     return <GuardoView loading={false} lezione={lezioneApertura} n={n} filmLoader={previewFilmLoader}
       onAvanti={() => (n < totalMomenti ? goTo("guardo", n + 1) : goTo("gioco"))} />;
   }
-  if (beat === "gioco" || beat === "fermata") {
-    // Both render the same placeholder in this slice — the real Gioco phase (with its own
-    // "fermata" pattern-stop) is slice 3's job. Expected red on the referee until then.
-    return <GiocoView onVaiAvanti={() => goTo("chiusura")} />;
+  if (beat === "gioco") {
+    return <GiocoView loading={false} lezione={lezioneApertura} onFine={(esito) => goTo("chiusura", undefined, esito)} deps={params.has("real") ? giocoDepsReal : giocoDeps} />;
+  }
+  if (beat === "fermata") {
+    // Plays the wrong a2a3 once on mount through the real move/grading path,
+    // so "fermata" is the actual "stopped" state, not a hand-built stand-in.
+    return <GiocoView loading={false} lezione={lezioneApertura} onFine={(esito) => goTo("chiusura", undefined, esito)} deps={giocoDeps}
+      autoPlayMoment={{ from: "a2", to: "a3" }} />;
   }
   if (beat === "chiusura") {
-    return <ChiusuraView loading={false} lezione={lezioneApertura} esitoGioco="saltato" onVaiEGioca={() => goTo("apertura")} />;
+    const esito = (params.get("esito") as LezioneEsitoGioco | null) ?? "saltato";
+    return <ChiusuraView loading={false} lezione={lezioneApertura} esitoGioco={esito} onVaiEGioca={() => goTo("apertura")} />;
   }
   return <AperturaView loading={false} error={false} lezione={lezioneApertura} progress={null}
     refreshing={false} refreshError={null}

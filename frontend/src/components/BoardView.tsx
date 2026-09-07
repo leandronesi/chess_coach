@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Chessboard } from "react-chessboard";
+import { Chess } from "chess.js";
 import type { Color } from "../types";
 
 /**
@@ -33,6 +34,16 @@ interface Props {
    * Reduced-motion: animation is always 0 regardless of this flag.
    */
   animate?: boolean;
+  /**
+   * Legal destination squares for the currently selected piece (Gioco's
+   * tap-to-move): a centered dot on an empty square, a ring when the square
+   * is occupied (capture). Purely additive — omit for no change.
+   */
+  dots?: string[];
+  /** The two squares of the last move played, tinted with --color-gold. */
+  lastMove?: { from: string; to: string };
+  /** Square of the king currently in check, or null/omitted for none. */
+  checkSquare?: string | null;
 }
 
 export function BoardView({
@@ -46,6 +57,9 @@ export function BoardView({
   onSquareClick,
   resetKey,
   animate = false,
+  dots,
+  lastMove,
+  checkSquare,
 }: Props) {
   // Responsive sizing: measure the available container width and clamp to
   // the requested size so the board never overflows on narrow viewports.
@@ -90,6 +104,17 @@ export function BoardView({
     };
   }, [maxSize]);
 
+  // Occupancy lookup for `dots`: an empty legal square gets a center dot, an
+  // occupied one (a capture) gets a ring instead. Parse failures just mean no
+  // dot renders as a ring — never crash the board over a transient bad FEN.
+  const occupancy = useMemo(() => {
+    try {
+      return new Chess(fen);
+    } catch {
+      return null;
+    }
+  }, [fen]);
+
   const squareStyles: Record<string, React.CSSProperties> = {};
   if (highlights) {
     for (const h of highlights) {
@@ -101,6 +126,38 @@ export function BoardView({
         boxShadow: `inset 0 0 0 3px ${h.color}`,
         boxSizing: "border-box",
       };
+    }
+  }
+  if (lastMove) {
+    const tint = "color-mix(in srgb, var(--color-gold) 35%, transparent)";
+    for (const square of [lastMove.from, lastMove.to]) {
+      squareStyles[square] = { ...squareStyles[square], background: tint, boxSizing: "border-box" };
+    }
+  }
+  if (checkSquare) {
+    squareStyles[checkSquare] = {
+      ...squareStyles[checkSquare],
+      background:
+        "radial-gradient(circle, color-mix(in srgb, var(--color-danger) 90%, transparent) 0%, " +
+        "color-mix(in srgb, var(--color-danger) 45%, transparent) 40%, transparent 80%)",
+      boxSizing: "border-box",
+    };
+  }
+  if (dots) {
+    for (const square of dots) {
+      const occupied = Boolean(occupancy?.get(square as never));
+      squareStyles[square] = occupied
+        ? {
+            ...squareStyles[square],
+            boxShadow: "inset 0 0 0 4px color-mix(in srgb, var(--color-text) 35%, transparent)",
+            boxSizing: "border-box",
+          }
+        : {
+            ...squareStyles[square],
+            backgroundImage:
+              "radial-gradient(circle, color-mix(in srgb, var(--color-text) 35%, transparent) 0 15%, transparent 15% 100%)",
+            boxSizing: "border-box",
+          };
     }
   }
 

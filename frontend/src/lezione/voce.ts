@@ -9,7 +9,7 @@
 import { Chess } from "chess.js";
 import type { Lezione, Momento } from "./lezione";
 import type { PatternKind, PersonalPattern } from "../pipeline/personalPatterns";
-import { buildMoveReason } from "../session/moveReason";
+import { buildMoveReason, pieceName, type MoveFacts } from "../session/moveReason";
 import { buildLevelCompare } from "../session/levelCompare";
 import { tr, getLang } from "../i18n/lang";
 
@@ -185,6 +185,57 @@ export function fraseLivello(pattern: PersonalPattern, targetRating: number): st
     targetRating,
     maiaStatus: pattern.maia.scored > 0 ? "scored" : null,
   });
+}
+
+// ── Fermata (Gioco) ──────────────────────────────────────────────────────
+
+/**
+ * The stop overlay's headline, right after the first (or retried) attempt at
+ * the moment comes back "wrong". Built from extractMoveFacts on the position
+ * with the move actually played — never invented (skill nonno-voice).
+ */
+export function fraseFermata(facts: MoveFacts | null): string {
+  const prefix = tr("Aspetta.", "Wait.");
+  const fatto = facts?.hung_piece
+    ? tr(
+        `Il ${pieceName(facts.hung_piece.type)} in ${facts.hung_piece.square}: chi lo difende?`,
+        `Your ${pieceName(facts.hung_piece.type)} on ${facts.hung_piece.square}: who defends it?`,
+      )
+    : facts?.punishment
+    ? tr(
+        `Dopo ${sanItaliano(facts.punishment.capture_san)} cosa resta?`,
+        `After ${facts.punishment.capture_san}, what is left?`,
+      )
+    : tr(
+        "Guarda cosa lasci all'avversario prima di lasciare la mano.",
+        "Look at what you leave for your opponent before letting go.",
+      );
+  return `${prefix} ${fatto}`;
+}
+
+/**
+ * Second line of the stop card: the threat, never the answer. The retry is
+ * only worth something if the player still has to find the move.
+ */
+export function fraseMinaccia(facts: MoveFacts | null): string | null {
+  if (facts?.punishment && facts?.hung_piece) {
+    return tr(
+      `Dopo ${sanItaliano(facts.punishment.capture_san)} il ${pieceName(facts.hung_piece.type)} lo perdi gratis.`,
+      `After ${facts.punishment.capture_san} you lose the ${pieceName(facts.hung_piece.type)} for nothing.`,
+    );
+  }
+  if (facts?.punishment) {
+    return tr(`L'avversario ha ${sanItaliano(facts.punishment.capture_san)}.`, `Your opponent has ${facts.punishment.capture_san}.`);
+  }
+  return null;
+}
+
+/** One line under the board: who is replying, without pretending it is a human rating. */
+export function fraseFonteAvversario(source: "maia_target_policy" | "stockfish_fallback" | "unavailable" | null, targetRating: number): string {
+  if (source === "stockfish_fallback") {
+    return tr("Risponde Stockfish di riserva: Maia non e' disponibile adesso.", "Stockfish is replying as a fallback: Maia is not available right now.");
+  }
+  return tr(`Risponde la policy Maia al livello ${targetRating}. Non e' un giocatore vero.`, `The Maia policy at level ${targetRating} is replying. It is not a real player.`);
 }
 
 // ── Chiusura ─────────────────────────────────────────────────────────────

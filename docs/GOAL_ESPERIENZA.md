@@ -193,7 +193,7 @@ Ritorno funziona da telefono su dati reali e il referee e' verde.
 - [x] Referee UX nel repo, rosso sulle schermate attuali (prova che misura).
 - [x] Apertura e Chiusura con memoria: una frase vera, un bottone.
 - [x] Guardo: film, verdetto in due frasi, scacchiera intera.
-- [ ] Gioco: partita contro Maia al livello obiettivo con eval bar, orologio,
+- [x] Gioco: partita contro Maia al livello obiettivo con eval bar, orologio,
       lista mosse, Ripensaci, fermata sul pattern.
 - [ ] Voce strato 2 (LLM sotto referee): solo se lnesi giudica lo strato 1 non sharp.
 - [ ] Quaderno backstage: prove come storia, numeri a richiesta, progressi in una frase.
@@ -259,3 +259,49 @@ La verifica finale cita prove per ogni riga. Una build verde da sola non basta.
   ha un test automatico; "Riprova" su errore di rete ricarica la pagina perche'
   `useTavoloData` non espone un retry mirato; l'evidenziazione delle case in
   `BoardView` e' un anello con alone, non il riempimento piatto del canvas.
+
+## Evidenze di implementazione, slice 3: il Gioco
+
+- `frontend/src/lezione/partita.ts`: macchina a stati pura della partita (mosse
+  utente e avversario, momento con primo tentativo e ultimo tentativo, fermata,
+  "Lascio cosi'", Ripensaci senza limite, sfoglio della lista mosse, orologio con
+  incremento, bandierina, tetto di 20 semimosse dopo il momento, esito).
+  `usePartita.ts`: Stockfish per la valutazione del momento e dell'eval bar,
+  avversario da `opponentPolicy.ts` (policy Maia al livello obiettivo, Stockfish
+  di riserva dichiarato), timer a 250 ms, persistenza per utente, salvataggio del
+  tentativo con UUID stabile e "Riprova" nella Chiusura se non arriva all'account.
+- `Gioco.tsx`: la schermata del canvas. `BoardView` ha ora case legali, ultima
+  mossa e scacco (prop opzionali). La fermata e' un velo con una domanda sul
+  fatto ("Aspetta. Il cavallo in e5: chi lo difende?") e la minaccia sotto,
+  Ripensaci primario e "Lascio cosi'" discreto.
+- Revisione di chi dirige, quattro correzioni prima del commit: (1) dopo un
+  Ripensaci il tentativo buono sovrascriveva il primo e l'esito diventava
+  "fermato" con `correct = true` salvato: ora il primo tentativo e' l'esito
+  (`firstTry`) e l'ultimo guida solo il feedback (`lastTry`); (2) l'orologio
+  addebitava al giocatore le pause (bot che pensa, fermata, sfoglio) al ritorno
+  del turno: ora il tick dimentica l'ultimo istante quando non consuma;
+  (3) la fermata rivelava la soluzione ("Cf3 mette al sicuro il pezzo"): ora
+  nomina la minaccia ("Dopo dxe5 il cavallo lo perdi gratis"), mai la risposta;
+  (4) la dichiarazione della fonte era un paragrafo tecnico troncato: ora una
+  riga ("Risponde la policy Maia al livello 1400. Non e' un giocatore vero.").
+- Prova con i motori veri nel browser (`/dev/lezione?beat=gioco&real`, modello
+  Maia locale): al primo tentativo Maia andava in timeout durante il caricamento
+  del modello e rispondeva sempre Stockfish di riserva. Ora Maia si scalda
+  nell'ultimo Guardo e all'ingresso nel Gioco, con 15 s di budget al turno:
+  risposta in 2,1 s con fonte `maia_target_policy` e massa campionata 0,10;
+  orologio da 4:12 a 4:07 senza addebito della valutazione; nessun errore di pagina.
+- Verifiche del 7 settembre 2026: Vitest 26 file, 225 test (26 nuovi in
+  `partita.test.ts`, inclusa la pausa non addebitata); Playwright 22 test
+  (3 nuovi: fermata, Ripensaci, mossa buona, trascinamento, sfoglio, takeback,
+  uscita con esito "ritirato"; ripresa dopo reload; primo viewport a 360 px);
+  referee verde su tutte e sei le scene a 360/390/430; foundation 17/17; build
+  verde. Screenshot in `frontend/.local-validation/ux/slice-3/`.
+- Prima riga che legge l'utente: Gioco "Tocca a te. Stessa partita, stessa
+  posizione, stesso orologio."; fermata "Aspetta. Il cavallo in e5: chi lo
+  difende?"; dopo la mossa buona "Ecco. Stavolta l'hai vista."; al tetto "Basta
+  cosi'. Il momento l'hai passato: il resto e' partita."
+- Debiti riportati, non corretti: un reload nella finestra tra la mossa del
+  momento e il verdetto riprende senza valutare quel tentativo; il ramo
+  "Stockfish di riserva" non e' esercitato dai test browser (solo dalla prova
+  manuale con i motori veri prima della correzione del timeout); la lista mosse
+  del Gioco parte vuota, senza le ultime mosse della partita originale.

@@ -232,16 +232,235 @@
   margin: 0;
 }
 
-/* ── Gioco (segnaposto, slice 3 lo completa) ───────────────────────────── */
+/* ── Gioco ──────────────────────────────────────────────────────────────
+ * Rows 1-5 must fit the first 360x780 viewport (§4 GOAL_ESPERIENZA.md);
+ * row 6 (Ripensaci + source) and the stop overlay may run past it. */
 
-.lezione-gioco-placeholder {
-  flex: 1 1 auto;
+.gioco-screen {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 20px;
+  gap: 10px;
+  padding: 12px 20px 24px;
 }
+
+.gioco-frase {
+  font: 19px/1.35 var(--font-voice);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gioco-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-soft);
+}
+
+.gioco-user-row {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.gioco-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.gioco-dot--grey { background: var(--color-muted); }
+.gioco-dot--gold { background: var(--color-gold); }
+.gioco-dot--pulse { animation: gioco-pulse 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .gioco-dot--pulse { animation: none; }
+}
+@keyframes gioco-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.gioco-clock {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--color-text);
+}
+
+.gioco-board-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.gioco-eval-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gioco-eval-bar {
+  flex: 1 1 auto;
+  width: 12px;
+  min-height: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-line-strong);
+  position: relative;
+}
+
+.gioco-eval-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-text);
+}
+
+.gioco-eval-label {
+  flex: 0 0 auto;
+  font: 600 10px var(--font-mono);
+  color: var(--color-muted);
+}
+
+.gioco-board-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.gioco-promo-picker {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  border-radius: 12px;
+}
+
+.gioco-promo-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: 700 18px var(--font-sans);
+}
+
+.gioco-footer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gioco-takeback-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text);
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.gioco-takeback-btn:disabled { opacity: 0.5; }
+
+.gioco-source-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--color-muted);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Purely a visual dimmer: pointer-events stay off so it never fights the
+ * referee's board-occlusion check. The board is already input-disabled via
+ * React props while phase is "stopped" — the veil does not need to block
+ * clicks itself, only the card's own controls re-enable them. */
+.gioco-stop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 27, 25, 0.55);
+  display: flex;
+  align-items: flex-end;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.gioco-stop-card {
+  pointer-events: auto;
+  width: 100%;
+  background: var(--color-surface-2);
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gioco-stop-frase {
+  margin: 0;
+  font: 19px/1.35 var(--font-voice);
+  color: var(--color-text);
+}
+
+.gioco-stop-meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-soft);
+}
+
+.gioco-stop-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.gioco-stop-leave {
+  min-height: 44px;
+  color: var(--color-text-soft);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Chiusura: the rare "Riprova" row (unsaved Gioco attempt) ───────────── */
+
+.lezione-pending-save {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+}
+.lezione-pending-save p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.lezione-pending-save-retry {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line-strong);
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+}
+.lezione-pending-save-retry:disabled { opacity: 0.6; }
 
 @media (max-width: 359px) {
   .lezione-chrome { padding-left: 12px; padding-right: 12px; }
