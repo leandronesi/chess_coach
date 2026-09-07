@@ -53,6 +53,14 @@ let currentLang: Lang = detectInitialLang();
 // ── Public API — usable outside React ─────────────────────────────────────────
 
 /** Returns the current active language. Safe to call anywhere. */
+/**
+ * Sets the module-level language without React. Used by the provider and by
+ * tests, whose expectations are written in Italian whatever the machine speaks.
+ */
+export function setCurrentLang(l: Lang): void {
+  currentLang = l;
+}
+
 export function getLang(): Lang {
   return currentLang;
 }

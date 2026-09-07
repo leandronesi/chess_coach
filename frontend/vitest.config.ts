@@ -14,5 +14,7 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     environment: "node",
+    // The voice is asserted in Italian: pin the language, whatever the runner's locale.
+    setupFiles: ["test/setup.ts"],
   },
 });
