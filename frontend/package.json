@@ -14,18 +14,15 @@
     "test:mobile": "playwright test",
     "preflight:production": "node scripts/verify-production-env.mjs",
     "preflight:maia": "node scripts/verify-maia-model.mjs",
-    "prebuild": "node scripts/assert-no-personal-public-data.mjs",
+    "prebuild": "node scripts/assert-no-personal-public-data.mjs && node scripts/ux-referee.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "setup:maia": "node scripts/setup-maia-model.mjs",
     "test:database": "node scripts/verify-learning-database.mjs",
     "preflight:remote": "node scripts/verify-remote-schema.mjs",
-    "referee": "node scripts/ux-referee.mjs",
-    "referee:legacy": "node scripts/ux-referee.mjs --scenes legacy"
+    "referee": "node scripts/ux-referee.mjs"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.1",
     "@supabase/supabase-js": "^2.45.4",
     "chess.js": "^1.0.0-beta.8",
     "lucide-react": "^1.16.0",
@@ -34,9 +31,7 @@
     "react-chessboard": "^5.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.15.1",
-    "recharts": "^2.13.3",
-    "stockfish": "^18.0.7",
-    "three": "^0.184.0"
+    "stockfish": "^18.0.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

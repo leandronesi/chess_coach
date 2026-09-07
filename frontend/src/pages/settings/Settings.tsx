@@ -16,6 +16,9 @@ import {
 import { FeedbackForm } from "../../components/FeedbackForm";
 import { tr } from "../../i18n/lang";
 import { LangToggle } from "../../i18n/LangToggle";
+import { getCurrentTheme, toggleTheme } from "../../theme";
+import { LezioneShell } from "../lezione/LezioneShell";
+import "../lezione/lezione.css";
 import {
   browserDoNotTrackEnabled,
   clearAnonymousTelemetryState,
@@ -42,7 +45,19 @@ export function Settings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [theme, setTheme] = useState(getCurrentTheme);
+  const [signingOut, setSigningOut] = useState(false);
   const dnt = browserDoNotTrackEnabled();
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      setStatus(tr("Uscita non riuscita. Riprova.", "Sign out failed. Try again."));
+      setSigningOut(false);
+    }
+  }
 
   useEffect(() => {
     if (!hash) return;
@@ -65,7 +80,22 @@ export function Settings() {
   const email = user?.email ?? "";
 
   return (
+    <LezioneShell variant="passo" stepLabel={tr("Impostazioni", "Settings")} backTo="/quaderno" backLabel={tr("Quaderno", "Notebook")}>
     <div className="settings-page">
+      <div className="settings-quick-rows">
+        <button type="button" className="settings-quick-row" onClick={() => setTheme(toggleTheme())}>
+          <span>{tr("Tema", "Theme")}</span>
+          <span className="settings-quick-value">{theme === "dark" ? tr("Scuro", "Dark") : tr("Chiaro", "Light")}</span>
+        </button>
+        <div className="settings-quick-row">
+          <span>{tr("Lingua", "Language")}</span>
+          <LangToggle touch />
+        </div>
+        <button type="button" className="settings-quick-row" disabled={signingOut} onClick={() => void handleSignOut()}>
+          <span>{signingOut ? tr("Esco…", "Signing out…") : tr("Esci", "Sign out")}</span>
+        </button>
+      </div>
+
       <p className="label-eyebrow" style={{ color: "var(--color-brand-soft)" }}>{tr("Il tuo account", "Your account")}</p>
       <h1>
         {tr("Il tuo profilo", "Your profile")}
@@ -88,12 +118,6 @@ export function Settings() {
             "This is a public Chess.com profile selected as the game source. We do not verify ownership, and more than one person can analyse the same profile.",
           )}
         </p>
-      </Section>
-
-      <Section title={tr("Lingua", "Language")}>
-        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
-          <LangToggle touch />
-        </div>
       </Section>
 
       <Section title={tr("Privacy e misurazione", "Privacy and measurement")}>
@@ -219,5 +243,6 @@ export function Settings() {
         </div>
       </Section>
     </div>
+    </LezioneShell>
   );
 }

@@ -57,6 +57,10 @@ jobs:
           PUBLIC_SITE_ORIGIN: ${{ vars.PUBLIC_SITE_ORIGIN }}
         run: npm run preflight:maia
 
+      - name: Install browser for the UX referee
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
       - name: Build static application
         working-directory: frontend
         env:

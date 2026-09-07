@@ -10,7 +10,6 @@ import { ForgotPassword } from "./pages/auth/ForgotPassword";
 import { UpdatePassword } from "./pages/auth/UpdatePassword";
 import { Onboarding } from "./pages/auth/Onboarding";
 import { OnboardingWaiting } from "./pages/auth/OnboardingWaiting";
-import { PatternProgress } from "./pages/PatternProgress";
 const PatternPreview = import.meta.env.DEV ? lazy(() => import("./pages/dev/PatternPreview")) : null;
 const LezionePreview = import.meta.env.DEV ? lazy(() => import("./pages/dev/LezionePreview")) : null;
 import { Apertura } from "./pages/lezione/Apertura";
@@ -18,35 +17,25 @@ import { Guardo } from "./pages/lezione/Guardo";
 import { Gioco } from "./pages/lezione/Gioco";
 import { Chiusura } from "./pages/lezione/Chiusura";
 import { Landing } from "./pages/Landing";
-import { PatternLibrary } from "./pages/PatternLibrary";
-import { PatternPractice } from "./pages/PatternPractice";
+import { Quaderno } from "./pages/quaderno/Quaderno";
+import { QuadernoPattern } from "./pages/quaderno/QuadernoPattern";
+import { QuadernoMomento } from "./pages/quaderno/QuadernoMomento";
 import { MaiaTest } from "./pages/MaiaTest";
-import { AppShell } from "./components/AppShell";
 import { PRODUCT_NAME } from "./coaching";
-import { IncontroPreview } from "./pages/dev/IncontroPreview";
-import { TeachTest } from "./pages/dev/TeachTest";
 import { Settings } from "./pages/settings/Settings";
 import { Privacy } from "./pages/Privacy";
 import { isAnalyzedTimeClass } from "./pipeline/config";
-// Lazy: the Stanza pulls in three.js — code-split so the main bundle never pays it.
-const StanzaHome = lazy(() =>
-  import("./pages/StanzaHome").then((m) => ({ default: m.StanzaHome })),
-);
 
 /**
  * Root router multi-utente per Nonno's Table.
  *
- * Flow:
+ * Flow (docs/GOAL_ESPERIENZA.md):
  *   anon                       → Landing (con CTA a signup/login)
- *   logged, !emailConfirmed    → /verify-email
  *   logged, no profile         → /onboarding
  *   logged, profile != ready   → /onboarding/waiting
- *   logged, profile == ready   → / (TavoloHome — BENTO numeri-first)
+ *   logged, profile == ready   → /lezione (la lezione del giorno)
  *
- * NOTA: le vecchie pagine `/cruscotto`, `/coach`, `/patterns`, `/storia`,
- * `/repertorio` sono temporaneamente sospese (legacy single-user). Verranno
- * rimontate man mano che il porting browser-side dei moduli backend matura
- * (vedi memory architecture-zero-worker).
+ * Percorso principale: /lezione*. Backstage: /quaderno*, /settings.
  */
 
 function FullScreenLoader({ label }: { label: string }) {
@@ -65,8 +54,7 @@ function FullScreenLoader({ label }: { label: string }) {
   );
 }
 
-/** Smista in base a sessione + stato profile.
- *  La Stanza e' un'introduzione una-tantum; chi ritorna atterra sul Tavolo. */
+/** Smista in base a sessione + stato profile: profilo pronto porta sempre a /lezione. */
 function HomeGate() {
   const { loading, user, profile, profileLoading, profileError } = useAuth();
   if (loading || (!profile && profileLoading)) return <FullScreenLoader label={tr("Carico la sessione…", "One moment.")} />;
@@ -162,44 +150,22 @@ export function App() {
           {PatternPreview && <Route path="/dev/patterns" element={<Suspense fallback={<div>Caricamento…</div>}><PatternPreview /></Suspense>} />}
           {LezionePreview && <Route path="/dev/lezione" element={<Suspense fallback={<div>Caricamento…</div>}><LezionePreview /></Suspense>} />}
 
-          {/* Account, privacy, export/delete and first-party feedback. */}
-          <Route path="/settings" element={<RequireAuth><AppShell><Settings /></AppShell></RequireAuth>} />
+          {/* Account, privacy, export/delete and first-party feedback. Own LezioneShell chrome, not AppShell. */}
+          <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
 
-          {/* Quaderno — hub a tab + deep-link via hash */}
-          <Route path="/quaderno" element={<RequireReadyProfile><AppShell><PatternLibrary /></AppShell></RequireReadyProfile>} />
-          {/* Legacy routes redirect into Quaderno tabs */}
-          <Route path="/freni"  element={<Navigate to="/quaderno#percorso" replace />} />
-          <Route path="/cadute" element={<Navigate to="/quaderno#cadute"     replace />} />
-
-          {/* Sessione di coaching */}
-          <Route path="/sessione" element={<RequireReadyProfile><AppShell><PatternPractice /></AppShell></RequireReadyProfile>} />
-          <Route path="/progressi" element={<RequireReadyProfile><AppShell><PatternProgress /></AppShell></RequireReadyProfile>} />
-
-          {/* La Stanza resta riapribile esplicitamente dopo l'introduzione. */}
-          <Route
-            path="/stanza"
-            element={
-              <RequireReadyProfile>
-                <Suspense fallback={<div className="stanza-shell"><div className="stanza-attesa">{tr("La Stanza", "The Room")}</div></div>}>
-                  <StanzaHome />
-                </Suspense>
-              </RequireReadyProfile>
-            }
-          />
+          {/* Il Quaderno — backstage: tutto quello che il rebuild ha costruito, letto come frasi. */}
+          <Route path="/quaderno" element={<RequireReadyProfile><Quaderno /></RequireReadyProfile>} />
+          <Route path="/quaderno/:patternId" element={<RequireReadyProfile><QuadernoPattern /></RequireReadyProfile>} />
+          <Route path="/quaderno/:patternId/:momentoId" element={<RequireReadyProfile><QuadernoMomento /></RequireReadyProfile>} />
+          {/* Legacy routes redirect into the Quaderno */}
+          <Route path="/freni"     element={<Navigate to="/quaderno" replace />} />
+          <Route path="/cadute"    element={<Navigate to="/quaderno" replace />} />
+          <Route path="/progressi" element={<Navigate to="/quaderno" replace />} />
+          <Route path="/sessione"  element={<Navigate to="/lezione" replace />} />
 
           {/* Maia smoke test — dev only (hidden from production build) */}
           {import.meta.env.DEV && (
             <Route path="/maia-test" element={<MaiaTest />} />
-          )}
-
-          {/* Anteprima dev scena onboarding — solo in sviluppo, nessun auth */}
-          {import.meta.env.DEV && (
-            <Route path="/dev/incontro" element={<IncontroPreview />} />
-          )}
-
-          {/* Diagnosi voce maestro — solo in sviluppo, richiede login */}
-          {import.meta.env.DEV && (
-            <Route path="/dev/teach" element={<TeachTest />} />
           )}
 
           {/* Fallback */}

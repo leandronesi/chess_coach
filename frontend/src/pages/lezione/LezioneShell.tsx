@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronLeft } from "lucide-react";
+import { BookOpen, ChevronLeft, X } from "lucide-react";
 import { tr } from "../../i18n/lang";
 import "../../components/coach-shell.css";
 import "./lezione.css";
@@ -15,19 +15,32 @@ interface LezioneShellPassoProps {
   /** e.g. "1 di 3" — monospace, not a heading, not clickable. */
   stepLabel: string;
   children: ReactNode;
-  /** Overrides the default "Tavolo" back-link label (Gioco uses "Esci"). */
+  /** Overrides the default "Tavolo" back-link label (Gioco uses "Esci", Quaderno pages use "Quaderno"). */
   backLabel?: string;
-  /** When set, the back control is a button calling this instead of a Link to /lezione
+  /** Overrides the default "/lezione" back target (Quaderno pages point back into the Quaderno). Ignored when onBack is set. */
+  backTo?: string;
+  /** When set, the back control is a button calling this instead of a Link to backTo/lezione
    *  (Gioco needs to save the attempt and write esitoGioco before navigating). */
   onBack?: () => void;
 }
 
-type LezioneShellProps = LezioneShellHomeProps | LezioneShellPassoProps;
+interface LezioneShellBackstageProps {
+  variant: "backstage";
+  /** h1, Inter Tight 28px. */
+  title: string;
+  children: ReactNode;
+}
+
+type LezioneShellProps = LezioneShellHomeProps | LezioneShellPassoProps | LezioneShellBackstageProps;
 
 /**
  * Minimal chrome for the lezione path: no tabs, no account menu, no theme
  * toggle. At most two controls, marked `data-referee="chrome"` for the UX
  * referee (scripts/ux-referee.mjs). Deliberately NOT AppShell.
+ *
+ * The "backstage" variant (Quaderno hub only) is intentionally outside the
+ * referee's scenes (docs/GOAL_ESPERIENZA.md §3 "[Quaderno, backstage]" is not
+ * on the main path) — it still follows the two-control chrome rule by habit.
  */
 export function LezioneShell(props: LezioneShellProps) {
   return (
@@ -43,6 +56,13 @@ export function LezioneShell(props: LezioneShellProps) {
               <BookOpen size={24} strokeWidth={1.8} aria-hidden="true" />
             </Link>
           </>
+        ) : props.variant === "backstage" ? (
+          <>
+            <h1 className="lezione-backstage-title">{props.title}</h1>
+            <Link to="/lezione" className="lezione-icon-btn" aria-label={tr("Chiudi", "Close")}>
+              <X size={24} strokeWidth={1.8} aria-hidden="true" />
+            </Link>
+          </>
         ) : props.onBack ? (
           <>
             <button type="button" className="lezione-back" onClick={props.onBack}>
@@ -53,7 +73,7 @@ export function LezioneShell(props: LezioneShellProps) {
           </>
         ) : (
           <>
-            <Link to="/lezione" className="lezione-back">
+            <Link to={props.backTo ?? "/lezione"} className="lezione-back">
               <ChevronLeft size={24} strokeWidth={1.8} aria-hidden="true" />
               <span>{props.backLabel ?? tr("Tavolo", "Table")}</span>
             </Link>

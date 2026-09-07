@@ -44,10 +44,18 @@ export interface GuardoViewProps {
   n: number;
   filmLoader: FilmLoader;
   onAvanti: () => void;
+  /**
+   * Read-only mode for the Quaderno (docs/GOAL_ESPERIENZA.md §3 "[Quaderno, backstage]",
+   * QuadernoMomento.tsx): when set, the chrome uses this back target/label instead of the
+   * lezione step count, and the bottom "Avanti" CTA is dropped — the chrome is enough.
+   * onBack overrides backTo with a callback (the /dev/lezione?beat=quaderno-momento preview
+   * needs to stay on its own URL and switch beat= instead of following a real Link).
+   */
+  lettura?: { backTo: string; backLabel: string; onBack?: () => void };
 }
 
 /** Pure presentation for one Guardo screen. n is 1-based. */
-export function GuardoView({ loading, lezione, n, filmLoader, onAvanti }: GuardoViewProps) {
+export function GuardoView({ loading, lezione, n, filmLoader, onAvanti, lettura }: GuardoViewProps) {
   const momento: Momento | null = lezione && Number.isInteger(n) && n >= 1 && n <= lezione.momenti.length
     ? lezione.momenti[n - 1]
     : null;
@@ -122,11 +130,11 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti }: Guardo
   }, [momento]);
 
   if (loading) {
-    return <LezioneShell variant="passo" stepLabel="">
+    return <LezioneShell variant="passo" stepLabel="" backTo={lettura?.backTo} backLabel={lettura?.backLabel} onBack={lettura?.onBack}>
       <p className="lezione-status">{tr("Un attimo, guardo le tue partite.", "One moment, I am looking at your games.")}</p>
     </LezioneShell>;
   }
-  if (!lezione || !momento) return <Navigate to="/lezione" replace />;
+  if (!lezione || !momento) return <Navigate to={lettura?.backTo ?? "/lezione"} replace />;
 
   const frames = [...prevFrames, ...staticFrames];
   const nowIndex = prevFrames.length;
@@ -147,7 +155,9 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti }: Guardo
   const clockMatch = contesto.match(/\d{1,2}:\d{2}/);
   const clockIndex = clockMatch?.index ?? -1;
 
-  return <LezioneShell variant="passo" stepLabel={`${n} ${tr("di", "of")} ${lezione.momenti.length}`}>
+  return <LezioneShell variant="passo"
+    stepLabel={lettura ? "" : `${n} ${tr("di", "of")} ${lezione.momenti.length}`}
+    backTo={lettura?.backTo} backLabel={lettura?.backLabel} onBack={lettura?.onBack}>
     <div className="lezione-guardo">
       <p className="lezione-contesto">
         {clockMatch && clockIndex >= 0
@@ -180,9 +190,11 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti }: Guardo
       <p className="lezione-verdetto">{fraseVerdetto(momento)}</p>
       {livello && <p className="lezione-livello">{livello}</p>}
 
-      <div className="lezione-foot">
-        <button type="button" className="lezione-cta" data-cta="primary" onClick={onAvanti}>{tr("Avanti", "Next")}</button>
-      </div>
+      {!lettura && (
+        <div className="lezione-foot">
+          <button type="button" className="lezione-cta" data-cta="primary" onClick={onAvanti}>{tr("Avanti", "Next")}</button>
+        </div>
+      )}
     </div>
   </LezioneShell>;
 }

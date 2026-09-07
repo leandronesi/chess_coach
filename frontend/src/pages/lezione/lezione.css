@@ -68,6 +68,12 @@
   letter-spacing: 0.02em;
 }
 
+.lezione-backstage-title {
+  font: 700 28px/1.2 var(--font-display);
+  color: var(--color-text);
+  margin: 0;
+}
+
 /* ── Shared layout ──────────────────────────────────────────────────────── */
 
 .lezione-main {

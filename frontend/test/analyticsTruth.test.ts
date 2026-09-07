@@ -16,8 +16,6 @@ import {
 import { classifyErrorSemantics } from "../src/pipeline/errorSemantics";
 import { selectPrinciple } from "../src/coach/selectPrinciple";
 import type { MoveFacts } from "../src/session/moveReason";
-import { toPositionRow } from "../src/session/fromCadute";
-import type { PositionExample } from "../src/pipeline/aggregate";
 import type { GameAnalysis } from "../src/pipeline/analyze";
 
 describe("clock extraction", () => {
@@ -105,58 +103,6 @@ describe("Stockfish acceptable set", () => {
     });
 
     expect(observed).toEqual(["e2e4", "d2d4"]);
-  });
-});
-
-describe("stable position identity", () => {
-  it("keeps real game/eval facts when cadute are reordered", () => {
-    const example = {
-      source_game_id: "game-uuid-123",
-      position_id: "game-uuid-123:27",
-      color: "white",
-      phase: "mediogioco",
-      ply: 27,
-      san: "a3",
-      played_uci: "a2a3",
-      best_uci: "e2e4",
-      cp_loss: 180,
-      score_before_cp: 90,
-      score_after_cp: -90,
-      fen_before: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      category: "mistake",
-      game_url: "https://www.chess.com/game/live/123",
-    } as PositionExample;
-
-    const firstOrder = toPositionRow(example, 0);
-    const secondOrder = toPositionRow(example, 9);
-    expect(firstOrder.game_id).toBe("game-uuid-123");
-    expect(firstOrder.position_id).toBe("game-uuid-123:27");
-    expect(secondOrder.game_id).toBe(firstOrder.game_id);
-    expect(secondOrder.position_id).toBe(firstOrder.position_id);
-    expect(firstOrder.cp_before).toBe(90);
-    expect(firstOrder.cp_after).toBe(-90);
-    expect(firstOrder.url).toBe("https://www.chess.com/game/live/123");
-  });
-
-  it("keeps unknown legacy evals null instead of inventing proxies", () => {
-    const legacy = {
-      color: "black",
-      phase: "finale",
-      ply: 40,
-      san: "Kh7",
-      played_uci: "g8h7",
-      best_uci: null,
-      cp_loss: 220,
-      fen_before: "8/8/8/8/8/8/5k2/7K b - - 0 1",
-      category: "mistake",
-      priority_score: 2,
-    } as unknown as PositionExample;
-
-    const row = toPositionRow(legacy, 4);
-    expect(row.cp_before).toBeNull();
-    expect(row.cp_after).toBeNull();
-    expect(row.priority_score).toBe(2);
-    expect(row.game_id).toMatch(/^legacy_/);
   });
 });
 

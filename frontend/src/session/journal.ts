@@ -13,12 +13,16 @@
  * Persistenza: localStorage `mygotham_journal`. Schema versionato.
  */
 
-import { todayUTC } from "./store";
 import { scopedStorage } from "../auth/userStorage";
 
 const STORAGE_KEY = "mygotham_journal";
 const SCHEMA = 1;
 const MAX_ENTRIES = 200; // cap per non gonfiare localStorage
+
+/** Moved in from the removed session/store.ts (slice 4): journal.ts was its only surviving caller. */
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export type JournalKind =
   | "drill_completed"     // hai finito una run di drill su un pattern

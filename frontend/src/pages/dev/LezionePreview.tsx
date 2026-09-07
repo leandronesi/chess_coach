@@ -23,12 +23,16 @@ import type { BatchEvalResult } from "../../pipeline/stockfishWorker";
 import type { FilmLoader } from "../../lezione/film";
 import type { PartitaEngineDeps } from "../../lezione/usePartita";
 import { buildLezione } from "../../lezione/lezione";
+import { tr } from "../../i18n/lang";
 import type { LezioneEsitoGioco } from "../../lezione/progress";
 import { emptySyntheticAggregates } from "./syntheticPatterns";
 import { AperturaView } from "../lezione/Apertura";
 import { GuardoView } from "../lezione/Guardo";
 import { ChiusuraView } from "../lezione/Chiusura";
 import { GiocoView } from "../lezione/Gioco";
+import { QuadernoView } from "../quaderno/Quaderno";
+import { QuadernoPatternView } from "../quaderno/QuadernoPattern";
+import { findMomento } from "../quaderno/QuadernoMomento";
 
 // ── Synthetic opportunities ──────────────────────────────────────────────
 
@@ -95,7 +99,34 @@ const padding = [2, 3, 4].map((i) => hangingPieceOpportunity({
   spentSeconds: 30, clockRemaining: 200, opponentRating: 1220,
 }));
 
-const opportunities = [featured, ...fillerErrors, success, ...padding];
+// A second, deliberately thin pattern (§A of the slice-4 spec): only two
+// opportunities in two games, so evidence stays "insufficient" — the Quaderno
+// needs both phrasings ("recurring" for hanging_piece, "insufficient" here)
+// on screen at once. time_reserve's own frase reads fastDecisions/opportunities,
+// not the errors/games pair, so pace must actually be "fast" with reserve "ample".
+function timeReserveOpportunity(gameId: string, playedAt: string, ply: number, cpLoss: number): PatternOpportunity {
+  const spentSeconds = 1;
+  const clockRemaining = 99; // before-thinking = 99 + 1 - 0 = 100s, >= the 75s "ample" threshold at 300+0
+  const timing = assessDecisionTiming({
+    spentSeconds, clockRemaining, baseSeconds: BASE_SECONDS, incrementSeconds: INCREMENT_SECONDS,
+    ply, scoreBeforeCp: 20, legalMoveCount: 30,
+  });
+  return {
+    id: `${gameId}:${ply}`, gameId, playedAt, startedAt: null,
+    kinds: ["time_reserve"], scope: SCOPE,
+    timeClass: "blitz", baseSeconds: BASE_SECONDS, incrementSeconds: INCREMENT_SECONDS, opponentRating: 1210,
+    phase: "middlegame", ply, fen: FILLER_FEN, color: "white",
+    playedUci: "e2d3", playedSan: "Kd3", lastOpponentSan: null,
+    previousMoves: [], bestUci: "e2f3", acceptableUcis: ["e2f3"],
+    cpLoss, scoreBeforeCp: 20, clockRemaining, timing,
+  };
+}
+const timeReserveOpportunities = [
+  timeReserveOpportunity("canvas-tr-1", "2026-08-18T18:00:00Z", 25, 150),
+  timeReserveOpportunity("canvas-tr-2", "2026-08-19T18:00:00Z", 27, 20),
+];
+
+const opportunities = [featured, ...fillerErrors, success, ...padding, ...timeReserveOpportunities];
 const personalPatterns = buildPersonalPatternReport(opportunities, new Map(), 1200, 1400);
 const aggregates = emptySyntheticAggregates({ games_analyzed: 5, personal_patterns: personalPatterns });
 const featuredPattern = personalPatterns.patterns.find((p) => p.kind === "hanging_piece")!;
@@ -191,11 +222,45 @@ export default function LezionePreview() {
     setParams(next);
   }
 
+  // Quaderno beats carry their own pattern/momento id in the URL (pid/mid) instead of a
+  // real Link to /quaderno/... — this preview must stay on /dev/lezione, unauthenticated.
+  function goToQuaderno(nextBeat: string, extra?: { pid?: string; mid?: string }) {
+    const next = new URLSearchParams();
+    next.set("beat", nextBeat);
+    if (extra?.pid) next.set("pid", extra.pid);
+    if (extra?.mid) next.set("mid", extra.mid);
+    setParams(next);
+  }
+
   if (beat === "ritorno") {
     return <AperturaView loading={false} error={false} lezione={lezioneRitorno} progress={null}
       refreshing={false} refreshError={null}
       onSediamoci={() => goTo("guardo", 1)} onRivediamola={() => goTo("guardo", 1)}
       onAggiorna={() => {}} onRiprova={() => {}} />;
+  }
+  if (beat === "quaderno") {
+    return <QuadernoView loading={false} error={false} report={personalPatterns} learning={RITORNO_LEARNING}
+      gamesAnalyzed={aggregates.games_analyzed} lastGameDate="2026-08-30" currentRating={1200} targetRating={1400}
+      timeClass="rapid" todayPatternId={featuredPattern.id}
+      refreshing={false} refreshError={null} refreshNotice={null}
+      onAggiorna={() => {}} onRiprova={() => {}}
+      onSelectPattern={(patternId) => goToQuaderno("quaderno-pattern", { pid: patternId })} />;
+  }
+  if (beat === "quaderno-pattern") {
+    const pid = params.get("pid");
+    const selected = personalPatterns.patterns.find((p) => p.id === pid) ?? featuredPattern;
+    return <QuadernoPatternView loading={false} report={personalPatterns} pattern={selected} todayPatternId={featuredPattern.id} targetRating={1400}
+      onBack={() => goToQuaderno("quaderno")}
+      onSelectMomento={(momentoId) => goToQuaderno("quaderno-momento", { pid: selected.id, mid: momentoId })} />;
+  }
+  if (beat === "quaderno-momento") {
+    const found = findMomento(personalPatterns, params.get("pid") ?? featuredPattern.id, params.get("mid") ?? featured.id);
+    const lezione = found ? { ...lezioneApertura!, pattern: found.pattern, momenti: [found.momento] } : null;
+    // Flat backstage nav (docs/GOAL_ESPERIENZA.md §3 "[Quaderno, backstage]"): back always reads
+    // "Quaderno" and returns to the list, matching QuadernoMomento.tsx's real route.
+    return <GuardoView loading={false} lezione={lezione} n={1} filmLoader={previewFilmLoader}
+      onAvanti={() => {}}
+      lettura={{ backTo: "/quaderno", backLabel: tr("Quaderno", "Notebook"), onBack: () => goToQuaderno("quaderno") }} />;
   }
   if (beat === "guardo") {
     return <GuardoView loading={false} lezione={lezioneApertura} n={n} filmLoader={previewFilmLoader}

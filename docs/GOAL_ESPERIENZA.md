@@ -196,8 +196,8 @@ Ritorno funziona da telefono su dati reali e il referee e' verde.
 - [x] Gioco: partita contro Maia al livello obiettivo con eval bar, orologio,
       lista mosse, Ripensaci, fermata sul pattern.
 - [ ] Voce strato 2 (LLM sotto referee): solo se lnesi giudica lo strato 1 non sharp.
-- [ ] Quaderno backstage: prove come storia, numeri a richiesta, progressi in una frase.
-- [ ] Rimozione della barra tab e delle superfici rese irraggiungibili.
+- [x] Quaderno backstage: prove come storia, numeri a richiesta, progressi in una frase.
+- [x] Rimozione della barra tab e delle superfici rese irraggiungibili.
 - [ ] Verifica su corpus reale con `verify-full-journey.mjs` esteso al nuovo percorso.
 
 La verifica finale cita prove per ogni riga. Una build verde da sola non basta.
@@ -305,3 +305,109 @@ La verifica finale cita prove per ogni riga. Una build verde da sola non basta.
   "Stockfish di riserva" non e' esercitato dai test browser (solo dalla prova
   manuale con i motori veri prima della correzione del timeout); la lista mosse
   del Gioco parte vuota, senza le ultime mosse della partita originale.
+
+## Evidenze di implementazione, slice 4: il Quaderno, la rimozione, il cancello
+
+- `frontend/src/pages/quaderno/`: `Quaderno.tsx` (hub: voce d'apertura, "Quello
+  che torna" con una riga per pattern, "Come sta andando", "Tu"),
+  `QuadernoPattern.tsx` (titolo, frase-verdetto, "Le prove" come storia, due
+  `details` chiusi di default), `QuadernoMomento.tsx` (riusa `GuardoView` in
+  modalita' lettura), `quaderno.css` nuovo con gli stessi token di
+  `coach-shell.css` (caricati via `LezioneShell`). Route `/quaderno`,
+  `/quaderno/:patternId`, `/quaderno/:patternId/:momentoId`. Le righe cliccabili
+  sono bottoni con callback, non `Link`, come "Sediamoci"/"Avanti": cosi'
+  `/dev/lezione?beat=quaderno|quaderno-pattern|quaderno-momento` resta sulla
+  propria URL invece di rompersi contro `RequireReadyProfile` (nessun utente
+  autenticato in quell'anteprima). Navigazione volutamente piatta: dal
+  dettaglio e dalla prova si torna sempre a "Quaderno", non a una catena di
+  breadcrumb, per far tornare il test "back 'Quaderno'" del §D della spec.
+- `frontend/src/lezione/voce.ts`: `fraseQuadernoApertura`, `fraseQuadernoPattern`
+  (clausola per kind, coda "evidenza insufficiente", coda "lezione di oggi"),
+  `fraseProvaBreve`, `fraseQuadernoLearning`/`fraseQuadernoNessunConfronto`,
+  `fraseLivelloIndisponibile`, `fraseNumeriQuaderno`, `fraseQuadernoCadenza`,
+  `titoloPattern`. `frontend/src/lezione/lezione.ts`: `buildAggregati` e
+  `filmSourceOf` esportati (erano privati), `momentoFromOpportunity` e
+  `buildQuadernoAggregati` nuovi (quest'ultimo aggiunge il flag `isToday` a
+  `LezioneAggregati`, usato solo dal Quaderno).
+- `LezioneShell.tsx`: variante `backstage` (titolo h1 + X verso `/lezione`),
+  prop `backTo`/`onBack` opzionali sulla variante `passo`. `Guardo.tsx`: prop
+  `lettura` su `GuardoView` per la modalita' di sola lettura (niente "Avanti",
+  back configurabile via `backTo` o `onBack`).
+- `Settings.tsx`: shell `AppShell` -> `LezioneShell` passo (back "Quaderno");
+  tema, lingua e "Esci" spostati in tre righe in cima (riusando `theme.ts`,
+  `LangToggle`, `signOut` di `useAuth`), la vecchia sezione "Lingua" a meta'
+  pagina tolta per non duplicare il toggle.
+- Rimozione, verificata con grep prima di ogni cancellazione (nessun import
+  vivo residuo): 70 file, 19.723 righe. Espliciti dallo spec: `TavoloHome.tsx`,
+  `Sessione.tsx`, il vecchio `pages/quaderno/Quaderno.tsx` (2166 righe,
+  sostituito, non solo cancellato) e `boardArrows.ts`, `components/Quaderno.tsx`,
+  `NonnoSession`/`PlayStep`/`WarmupGuidato`/`CaduteTrainer`/`MomentReview`,
+  `session/store.ts`, `session/fromCadute.ts`, `PlaySession.tsx`,
+  `MomentoDelGiorno.tsx`, `Viaggio.tsx`, `BoardScene.tsx`, `engine/useStockfish.ts`,
+  `IncontroScene`+`IncontroPreview`+route, `TeachTest`+route, la Stanza intera
+  (route, 4 file, le tre dipendenze three.js), `PatternHome`/`Library`/`Practice`/
+  `Progress` + `pattern-coach.css`, `AppShell.tsx` (svuotato `coach-shell.css`
+  di tutto tranne i token `:root` e `.coach-brand-mark`, ancora usati da
+  `LezioneShell`). Orfani a cascata trovati con grep, non nell'elenco letterale
+  dello spec: `RepertorioPanel.tsx`, `TimingPatterns.tsx`, `MovePlayback.tsx`,
+  i tre `components/onboarding/Teach*.tsx`, `lib/motion.ts`, `srs.ts`,
+  `session/adaptiveSelector.ts`/`attemptRecorder.ts`/`passiveReviewHistory.ts`/
+  `selectionPersistence.ts`, `eco.ts`, `chess-utils.ts`, `glossary.ts`,
+  `BlunderCard.tsx` (gia' orfano prima di questo slice: zero importatori anche
+  a inizio slice), l'intero cluster grafici (`GameArcChart`/`RatingCurveChart`/
+  `SpeedVsErrorsChart`/`TimeManagementChart`/`NonnoExplain`/`DecisionsCard`/
+  `WeeklyTrendCard`) e card (`PlayerCard`/`TacticalBreakdownCard`/
+  `BlindSpotsList`/`DiagnosisList`/`CoachNarrative`/`RepertoireCard`/
+  `CoachNote`/`SureCheck`/`NonnoGreeting`), la dipendenza `recharts` (nessun
+  file vivo la importava piu' una volta tolti quei grafici). `session/journal.ts`
+  importava `todayUTC` da `store.ts`: spostata dentro `journal.ts` prima di
+  cancellare `store.ts`, che altrimenti restava un modulo condiviso vivo.
+- `PatternPreview.tsx` (`/dev/patterns`) NON cancellato come lo spec elencava:
+  ridotto alla sola anteprima di `AnalysisPreparation` (95 -> 35 righe), l'unica
+  parte ancora viva, testata da 3 dei 5 scenari di `e2e/public-mobile.spec.ts`
+  (contatori di progresso, recupero da errore, stima Maia). Deviazione dichiarata
+  dall'elenco "raggiungibile solo in DEV" della spec (che non cita `/dev/patterns`):
+  la route resta invisibile in produzione (gated da `import.meta.env.DEV` come
+  sempre), zero impatto utente, e salva test di un componente onboarding vivo
+  che altrimenti sarebbero spariti senza sostituto.
+- Cancello: `prebuild` ora `assert-no-personal-public-data.mjs && ux-referee.mjs`;
+  il set `legacy` tolto dal referee (resta solo `lezione`, sei scene, il Quaderno
+  non aggiunto perche' non e' percorso principale); step "Install browser for
+  the UX referee" (`npx playwright install --with-deps chromium`) aggiunto in
+  `.github/workflows/build-and-deploy.yml` subito prima della build, senza altre
+  modifiche al workflow.
+- Verifiche del 7 settembre 2026: `npx tsc -b` pulito; `npm run build` verde
+  CON il referee dentro (18/18 scene a 360/390/430); `npm test` verde (17
+  foundation + 207 Vitest, 25 nuovi in `test/lezione.test.ts` su
+  `fraseQuadernoPattern` (una per kind, evidenza insufficiente, lezione di
+  oggi), `fraseProvaBreve` ed le altre frasi del Quaderno); `npx playwright test`
+  verde (14/14, incluso il nuovo `e2e/quaderno.spec.ts`: righe con le frasi,
+  apertura del dettaglio, apertura della prova con scacchiera visibile e
+  nessun bottone in fondo, back "Quaderno", i due `details` chiusi che si
+  aprono, "Aggiorna" abilitato, nessun overflow orizzontale a 360px).
+  Screenshot in `frontend/.local-validation/ux/slice-4/`. Bundle totale in
+  `dist/assets/*.js`: prima (fine slice 3, HEAD `e816e5e`, misurato in un
+  worktree isolato per non toccare le modifiche in corso) 1.856,33 kB su 3
+  chunk (928,66 principale + 916,01 Stanza/three.js + 11,66 lazy) e 189,42 kB
+  di CSS; dopo 901,08 kB su un chunk solo e 170,91 kB di CSS.
+- Prima riga che legge l'utente: Quaderno "Qui c'e' tutto quello che ho visto
+  nelle tue 5 partite. Leggilo quando vuoi."; dettaglio pattern "4 volte in 5
+  partite. Ci stiamo lavorando da oggi." sotto il titolo "Pezzi in presa".
+- Debiti riportati, non corretti: `coach/selectPrinciple.ts`/`coach/teachClient.ts`
+  sono rimasti (hanno un test in `analyticsTruth.test.ts` ed erano l'unico
+  candidato "sottosistema", non "foglia UI", tra gli orfani: da rivalutare se
+  parte la voce strato 2) pur avendo perso l'unico consumatore UI (`TeachTest.tsx`,
+  cancellato). Le regole CSS `.stanza-*` e `.recharts-*` in `index.css` restano
+  morte (file condiviso, fuori scope di questo slice). `README.md` "Struttura
+  utile" e `docs/OOUX_IA.md` non toccati (follow-up, come richiesto dalla spec).
+  "I numeri" nel dettaglio pattern accorpa gli 8 valori richiesti (occasioni,
+  partite, errori, partite con errori, decisioni rapide, idonee, valutate,
+  campione) in 5 frasi anziche' 8 righe 1:1: lettura piu' diretta scelta in
+  assenza di un elenco esplicito nella spec.
+- Revisione di chi dirige, due correzioni di copy prima del commit: la frase di
+  "Come sta andando" diceva "4 volte su 5" senza dire di cosa (ora "Pezzi in
+  presa, dal 20 agosto: il pezzo in presa l'hai visto 4 volte su 5 nelle partite
+  dopo l'esercizio. Prima erano 4 su 10."); la riga "Tu" mostrava i minuti
+  settimanali dell'onboarding al posto della cadenza letta (ora "Leggo le tue
+  partite blitz." o "rapid"). Rieseguiti build con referee (18 scene verdi),
+  Vitest 21 file e 207 test, Playwright 14 test, foundation 17/17.

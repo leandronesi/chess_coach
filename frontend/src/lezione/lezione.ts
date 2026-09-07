@@ -61,6 +61,14 @@ export interface LezioneAggregati {
    * it never invents this figure.
    */
   velociConRiserva: number | null;
+  /**
+   * Quaderno-only: true when this is the pattern chosen for today's lezione.
+   * Unused by fraseApertura/fraseRitorno — buildAggregati never sets it, the
+   * Quaderno page adds it per row so fraseQuadernoPattern can close with
+   * "Ci stiamo lavorando da oggi." Optional so the lezione's own aggregati
+   * (built without this concept) stay valid without it.
+   */
+  isToday?: boolean;
 }
 
 export interface Lezione {
@@ -83,10 +91,16 @@ export interface BuildLezioneInput {
   progress: LezioneProgress | null;
 }
 
-function filmSourceOf(o: PatternOpportunity): FilmSource {
+export function filmSourceOf(o: PatternOpportunity): FilmSource {
   if (o.previousMoves && o.previousMoves.length > 0) return { kind: "prev", moves: o.previousMoves };
   if (o.lastOpponentSan) return { kind: "last", san: o.lastOpponentSan };
   return { kind: "none" };
+}
+
+/** Wraps a single opportunity into a Momento — the Quaderno's read-only momento
+ *  screens reuse this instead of duplicating pickMomenti's per-item shape. */
+export function momentoFromOpportunity(o: PatternOpportunity, esito: Esito, indice = 1): Momento {
+  return { opportunity: o, esito, indice, film: filmSourceOf(o) };
 }
 
 function hasExamples(p: PersonalPattern): boolean {
@@ -142,13 +156,24 @@ function buildMemoria(pattern: PersonalPattern, learning: PatternLearning[]): Le
   };
 }
 
-function buildAggregati(pattern: PersonalPattern, report: PersonalPatternReport): LezioneAggregati {
+/** Exported: also drives each pattern row's frase in the Quaderno (Quaderno.tsx), not just today's lezione. */
+export function buildAggregati(pattern: PersonalPattern, report: PersonalPatternReport): LezioneAggregati {
   const observations = report.observations;
   if (!observations) return { partite: pattern.games, errori: pattern.errors, velociConRiserva: null };
   const rows = observations.filter((o) => o.patternIds.includes(pattern.id));
   const errorRows = rows.filter((o) => o.cpLoss >= 100);
   const veloci = errorRows.filter((o) => o.fast === true).length;
   return { partite: pattern.games, errori: pattern.errors, velociConRiserva: veloci };
+}
+
+/**
+ * Same as buildAggregati, tagged with whether `pattern` is the one today's
+ * lezione would pick (Quaderno.tsx and QuadernoPattern.tsx share this so the
+ * "Ci stiamo lavorando da oggi." tail agrees between the list row and the
+ * pattern's own page — see fraseQuadernoPattern in voce.ts).
+ */
+export function buildQuadernoAggregati(pattern: PersonalPattern, report: PersonalPatternReport, todayPatternId: string | null): LezioneAggregati {
+  return { ...buildAggregati(pattern, report), isToday: todayPatternId != null && pattern.id === todayPatternId };
 }
 
 export function buildLezione(input: BuildLezioneInput): Lezione | null {

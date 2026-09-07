@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildLezione, type BuildLezioneInput } from "../src/lezione/lezione";
-import { fraseApertura, fraseContesto, fraseVerdetto, fraseChiusura, fraseRitorno, sanItaliano } from "../src/lezione/voce";
+import { buildLezione, type BuildLezioneInput, type LezioneAggregati, type Momento } from "../src/lezione/lezione";
+import {
+  fraseApertura, fraseContesto, fraseVerdetto, fraseChiusura, fraseRitorno, sanItaliano,
+  fraseQuadernoPattern, fraseProvaBreve, fraseQuadernoLearning, fraseQuadernoNessunConfronto,
+  fraseLivelloIndisponibile, fraseNumeriQuaderno, fraseQuadernoApertura, fraseQuadernoCadenza,
+} from "../src/lezione/voce";
 import { isCompletedToday, todayLocal, type LezioneProgress } from "../src/lezione/progress";
 import { PATTERN_VERSION, type PatternKind, type PatternOpportunity, type PersonalPattern, type PersonalPatternReport } from "../src/pipeline/personalPatterns";
 import type { PatternLearning } from "../src/pipeline/patternLearning";
@@ -229,5 +233,204 @@ describe("memoria — il Ritorno", () => {
     const lezione = buildLezione(input({ report: report({ patterns: [p] }), learning }))!;
     expect(lezione.memoria).toMatchObject({ poche: true });
     expect(fraseRitorno(lezione)).toContain("Sono poche partite ancora, ma la mano sta cambiando.");
+  });
+});
+
+describe("Quaderno — fraseQuadernoPattern (slice 4)", () => {
+  it("hanging_piece: 'N volte in M partite', senza clausola quando il ledger non sa i veloci", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", errors: 11 });
+    const agg: LezioneAggregati = { partite: 24, errori: 11, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("11 volte in 24 partite.");
+  });
+
+  it("hanging_piece: aggiunge 'in pochi secondi' quando il ledger conosce il ritmo", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", errors: 11 });
+    const agg: LezioneAggregati = { partite: 24, errori: 11, velociConRiserva: 6 };
+    expect(fraseQuadernoPattern(p, agg)).toBe("11 volte in 24 partite, 6 in pochi secondi.");
+  });
+
+  it("hanging_piece: 'una volta' al singolare, capitalizzata come inizio frase", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", errors: 1 });
+    const agg: LezioneAggregati = { partite: 2, errori: 1, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("Una volta in 2 partite.");
+  });
+
+  it("fork usa la stessa clausola di hanging_piece", () => {
+    const p = pattern({ id: "fork:a", kind: "fork", errors: 3 });
+    const agg: LezioneAggregati = { partite: 5, errori: 3, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("3 volte in 5 partite.");
+  });
+
+  it("back_rank usa la stessa clausola", () => {
+    const p = pattern({ id: "back_rank:a", kind: "back_rank", errors: 4 });
+    const agg: LezioneAggregati = { partite: 8, errori: 4, velociConRiserva: 2 };
+    expect(fraseQuadernoPattern(p, agg)).toBe("4 volte in 8 partite, 2 in pochi secondi.");
+  });
+
+  it("keep_advantage usa la stessa clausola", () => {
+    const p = pattern({ id: "keep_advantage:a", kind: "keep_advantage", errors: 4 });
+    const agg: LezioneAggregati = { partite: 8, errori: 4, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("4 volte in 8 partite.");
+  });
+
+  it("time_reserve legge fastDecisions su opportunities, non gli errori", () => {
+    const p = pattern({ id: "time_reserve:a", kind: "time_reserve", opportunities: 10, fastDecisions: 6, errors: 2 });
+    const agg: LezioneAggregati = { partite: 5, errori: 2, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("6 volte su 10 hai mosso in pochi secondi con il tempo in riserva.");
+  });
+
+  it("time_pressure legge errori su opportunities", () => {
+    const p = pattern({ id: "time_pressure:a", kind: "time_pressure", opportunities: 9, errors: 3 });
+    const agg: LezioneAggregati = { partite: 4, errori: 3, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("3 errori su 9 occasioni sotto i trenta secondi.");
+  });
+
+  it("narrow_choice legge errori su opportunities", () => {
+    const p = pattern({ id: "narrow_choice:a", kind: "narrow_choice", opportunities: 12, errors: 5 });
+    const agg: LezioneAggregati = { partite: 6, errori: 5, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("5 volte su 12 dove c'erano due candidate vere.");
+  });
+
+  it("evidenza insufficient chiude con la frase sulla scarsita' di occasioni", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", errors: 2, evidence: "insufficient" });
+    const agg: LezioneAggregati = { partite: 2, errori: 2, velociConRiserva: null };
+    expect(fraseQuadernoPattern(p, agg)).toBe("2 volte in 2 partite. Sono poche occasioni: non lo chiamo ancora un'abitudine.");
+  });
+
+  it("il pattern della lezione di oggi chiude con 'Ci stiamo lavorando da oggi.'", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", errors: 2 });
+    const agg: LezioneAggregati = { partite: 2, errori: 2, velociConRiserva: null, isToday: true };
+    expect(fraseQuadernoPattern(p, agg)).toBe("2 volte in 2 partite. Ci stiamo lavorando da oggi.");
+  });
+
+  it("insufficient e isToday insieme mantengono entrambe le code, nell'ordine", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", errors: 2, evidence: "insufficient" });
+    const agg: LezioneAggregati = { partite: 2, errori: 2, velociConRiserva: null, isToday: true };
+    expect(fraseQuadernoPattern(p, agg)).toBe(
+      "2 volte in 2 partite. Sono poche occasioni: non lo chiamo ancora un'abitudine. Ci stiamo lavorando da oggi.",
+    );
+  });
+
+  it("nessuna frase contiene un em-dash", () => {
+    const kinds: PatternKind[] = ["hanging_piece", "fork", "back_rank", "narrow_choice", "time_reserve", "time_pressure", "keep_advantage"];
+    for (const kind of kinds) {
+      const p = pattern({ id: `${kind}:a`, kind, errors: 3, opportunities: 9, fastDecisions: 3 });
+      const agg: LezioneAggregati = { partite: 4, errori: 3, velociConRiserva: 1, isToday: true };
+      expect(fraseQuadernoPattern(p, agg)).not.toContain("—");
+    }
+  });
+});
+
+describe("Quaderno — fraseProvaBreve (slice 4)", () => {
+  function momento(overrides: Partial<PatternOpportunity> & { id: string; gameId: string }, esito: Momento["esito"] = "errore"): Momento {
+    return { opportunity: opportunity(overrides), esito, indice: 1, film: { kind: "none" } };
+  }
+
+  it("errore: data, avversario, mossa, SAN in italiano e secondi, poi 'Ti e' sfuggito.'", () => {
+    const m = momento({ id: "g1:25", gameId: "g1", playedAt: "2026-08-30T18:00:00Z", opponentRating: 1240, ply: 25, playedSan: "Nxe5" }, "errore");
+    const frase = fraseProvaBreve(m);
+    expect(frase).toContain("contro un 1240");
+    expect(frase).toContain("mossa 13");
+    expect(frase).toContain("Cxe5 in 6 secondi");
+    expect(frase.endsWith("Ti e' sfuggito.")).toBe(true);
+  });
+
+  it("riuscita: chiude con 'L'hai vista.'", () => {
+    const m = momento({ id: "g1:31", gameId: "g1", cpLoss: 10 }, "riuscita");
+    expect(fraseProvaBreve(m).endsWith("L'hai vista.")).toBe(true);
+  });
+
+  it("senza orologio disponibile, non nomina i secondi", () => {
+    const noClock: DecisionTiming = { ...TIMING_AVAILABLE, status: "missing_clock", clockBeforeSeconds: null, spentSeconds: null };
+    const m = momento({ id: "g1:25", gameId: "g1", timing: noClock });
+    expect(fraseProvaBreve(m)).not.toContain("secondi");
+  });
+
+  it("senza rating avversario, dice 'un avversario'", () => {
+    const m = momento({ id: "g1:25", gameId: "g1", opponentRating: null });
+    expect(fraseProvaBreve(m)).toContain("contro un avversario");
+  });
+});
+
+describe("Quaderno — altre frasi (slice 4)", () => {
+  it("fraseQuadernoApertura nomina le partite quando il conteggio c'e', altrimenti resta generica", () => {
+    expect(fraseQuadernoApertura(24)).toContain("nelle tue 24 partite");
+    expect(fraseQuadernoApertura(null)).toContain("nelle tue partite");
+    expect(fraseQuadernoApertura(null)).not.toMatch(/\d/);
+  });
+
+  it("fraseQuadernoCadenza compone cadenza, partite lette e ultima data, con verbi", () => {
+    const frase = fraseQuadernoCadenza("blitz", 24, "2026-08-30");
+    expect(frase).toContain("Leggo le tue partite blitz.");
+    expect(frase).toContain("Ho letto 24 partite");
+    expect(frase).not.toContain("—");
+  });
+
+  it("fraseQuadernoCadenza senza cadenza o senza partite non inventa numeri", () => {
+    expect(fraseQuadernoCadenza(null, null, null)).toContain("Non hai ancora scelto una cadenza");
+    expect(fraseQuadernoCadenza(null, null, null)).toContain("Non ho ancora partite lette.");
+  });
+
+  it("fraseQuadernoLearning riporta riuscite/occasioni prima e dopo, con verbo", () => {
+    const learning: PatternLearning = {
+      excludedChronologyGames: 0, patternId: "hanging_piece:a", firstPracticedAt: "2026-08-01T00:00:00Z",
+      practiceAttempts: 3, practiceSuccesses: 2, practiceWithHint: 0,
+      baseline: { opportunities: 10, games: 5, errors: 6, fast: 4, timingKnown: 8, errorRate: 0.6, fastShare: 0.5 },
+      subsequent: { opportunities: 12, games: 8, errors: 3, fast: 0, timingKnown: 4, errorRate: 0.25, fastShare: 0 },
+      errorRateChange: -0.35,
+    };
+    const frase = fraseQuadernoLearning(learning, "hanging_piece");
+    expect(frase).toContain("il pezzo in presa l'hai visto 9 volte su 12");
+    expect(frase).toContain("Prima erano 4 su 10");
+    expect(frase).not.toContain("Sono poche partite");
+  });
+
+  it("fraseQuadernoLearning avverte quando il campione dopo l'esercizio e' ancora piccolo (< 5)", () => {
+    const learning: PatternLearning = {
+      excludedChronologyGames: 0, patternId: "hanging_piece:a", firstPracticedAt: "2026-08-01T00:00:00Z",
+      practiceAttempts: 3, practiceSuccesses: 2, practiceWithHint: 0,
+      baseline: { opportunities: 0, games: 0, errors: 0, fast: 0, timingKnown: 0, errorRate: null, fastShare: null },
+      subsequent: { opportunities: 3, games: 2, errors: 1, fast: 0, timingKnown: 0, errorRate: null, fastShare: null },
+      errorRateChange: null,
+    };
+    expect(fraseQuadernoLearning(learning, "hanging_piece")).toContain("Sono poche partite: ne servono almeno dieci per dirlo davvero.");
+  });
+
+  it("fraseQuadernoLearning segnala le partite senza orario escluse dal confronto", () => {
+    const learning: PatternLearning = {
+      excludedChronologyGames: 2, patternId: "hanging_piece:a", firstPracticedAt: "2026-08-01T00:00:00Z",
+      practiceAttempts: 3, practiceSuccesses: 2, practiceWithHint: 0,
+      baseline: { opportunities: 0, games: 0, errors: 0, fast: 0, timingKnown: 0, errorRate: null, fastShare: null },
+      subsequent: { opportunities: 12, games: 8, errors: 2, fast: 0, timingKnown: 0, errorRate: null, fastShare: null },
+      errorRateChange: null,
+    };
+    expect(fraseQuadernoLearning(learning, "hanging_piece")).toContain("2 partite senza orario sono fuori dal confronto.");
+  });
+
+  it("fraseQuadernoNessunConfronto non inventa un pattern specifico", () => {
+    expect(fraseQuadernoNessunConfronto()).toBe("Il confronto comincia dopo la prima lezione giocata.");
+  });
+
+  it("fraseLivelloIndisponibile riporta scored su eligible, con verbo", () => {
+    const p = pattern({ id: "hanging_piece:a", kind: "hanging_piece", maia: { eligible: 9, selected: 9, scored: 2, currentSupport: null, targetSupport: null } });
+    expect(fraseLivelloIndisponibile(p)).toBe("Maia non ha abbastanza posizioni confrontate per dirlo: 2 su 9 idonee.");
+  });
+
+  it("fraseNumeriQuaderno mette ogni numero dentro una frase con un verbo", () => {
+    const p = pattern({
+      id: "hanging_piece:a", kind: "hanging_piece", opportunities: 20, games: 10, errors: 11, errorGames: 6, fastDecisions: 4,
+      maia: { eligible: 9, selected: 7, scored: 5, currentSupport: null, targetSupport: null },
+    });
+    const righe = fraseNumeriQuaderno(p);
+    expect(righe).toHaveLength(5);
+    expect(righe.join(" ")).toContain("20 volte in 10 partite");
+    expect(righe.join(" ")).toContain("11 volte");
+    expect(righe.join(" ")).toContain("6 partite diverse");
+    expect(righe.join(" ")).toContain("4 volte");
+    expect(righe.join(" ")).toContain("9 posizioni");
+    expect(righe.join(" ")).toContain("valutate 5");
+    expect(righe.join(" ")).toContain("campione era di 7 posizioni");
+    expect(righe.join(" ")).toContain("non e' una stima della popolazione.");
+    for (const riga of righe) expect(riga).not.toContain("—");
   });
 });

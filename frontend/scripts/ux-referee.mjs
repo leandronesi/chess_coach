@@ -15,7 +15,6 @@
 //
 // Usage:
 //   node scripts/ux-referee.mjs                 # starts Vite on a free port, runs, exits 1 on failure
-//   node scripts/ux-referee.mjs --scenes legacy # measure the pre-lezione screens (expected red)
 //   node scripts/ux-referee.mjs --only apertura,guardo   # subset of the lezione scenes
 //   REFEREE_BASE_URL=http://127.0.0.1:5173 node scripts/ux-referee.mjs   # reuse a running server
 import { spawn } from "node:child_process";
@@ -32,13 +31,9 @@ const VIEWPORTS = [
   { width: 430, height: 932 },
 ];
 
-// kind: apertura | guardo | gioco | chiusura. Backstage screens are not refereed.
+// kind: apertura | guardo | gioco | chiusura. Backstage (Quaderno) screens are not refereed
+// (docs/GOAL_ESPERIENZA.md §3 "[Quaderno, backstage]" is not on the main path).
 const SCENES = {
-  legacy: [
-    { id: "home", kind: "apertura", url: "/dev/patterns" },
-    { id: "dettaglio", kind: "guardo", url: "/dev/patterns?detail" },
-    { id: "allenamento", kind: "gioco", url: "/dev/patterns?practice", setup: [{ click: "Osserva la posizione" }] },
-  ],
   lezione: [
     { id: "apertura", kind: "apertura", url: "/dev/lezione?beat=apertura" },
     { id: "guardo", kind: "guardo", url: "/dev/lezione?beat=guardo" },
