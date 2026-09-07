@@ -62,9 +62,12 @@ const outDir = join(process.cwd(), ".local-validation", "ux-referee", sceneSet);
 mkdirSync(outDir, { recursive: true });
 
 async function withServer(fn) {
-  if (process.env.REFEREE_BASE_URL) return fn(process.env.REFEREE_BASE_URL);
+  // The app can live under a sub-path (VITE_BASE, e.g. /nonnos-table/ on GitHub
+  // Pages): the dev server and the router both honour it, so the scenes must too.
+  const subPath = (process.env.VITE_BASE || "/").replace(/\/$/, "");
+  if (process.env.REFEREE_BASE_URL) return fn(process.env.REFEREE_BASE_URL.replace(/\/$/, "") + subPath);
   const port = 5179 + Math.floor(Math.random() * 200);
-  const base = `http://127.0.0.1:${port}`;
+  const base = `http://127.0.0.1:${port}${subPath}`;
   const vite = spawn(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], { stdio: "ignore", shell: process.platform === "win32" });
   try {
     const deadline = Date.now() + 60_000;
