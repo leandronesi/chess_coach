@@ -162,7 +162,18 @@ await withServer(async (base) => {
     const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, locale: "it-IT", deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     for (const scene of scenes) {
-      await page.goto(base + scene.url, { waitUntil: "networkidle" });
+      // A cold Vite server (CI) optimizes dependencies on the first request and
+      // reloads the page; "networkidle" can resolve on an empty document. Wait
+      // for real content, and reload once or twice if it does not come.
+      let painted = false;
+      for (let attempt = 0; attempt < 3 && !painted; attempt++) {
+        if (attempt === 0) await page.goto(base + scene.url, { waitUntil: "networkidle" });
+        else await page.reload({ waitUntil: "networkidle" });
+        painted = await page.waitForFunction(() => {
+          const main = document.querySelector("main") || document.body;
+          return (main.innerText || "").trim().length > 20;
+        }, null, { timeout: 30000 }).then(() => true).catch(() => false);
+      }
       for (const step of scene.setup ?? []) { await page.getByRole("button", { name: step.click }).click(); }
       await page.waitForTimeout(800);
       const m = await page.evaluate(measure);
