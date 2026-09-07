@@ -20,7 +20,7 @@ import { runRefresh, runFullReanalyze } from "../../pipeline/orchestrator";
 import type { Aggregates } from "../../pipeline/aggregate";
 import type { PlayerModelLite } from "../../pipeline/playerModelLite";
 import { goalProgress, anchorTrendsFromHistory } from "../../pipeline/history";
-import { setCachedAggregates } from "../../pipeline/aggregatesCache";
+import { getCachedAggregates, setCachedAggregates } from "../../pipeline/aggregatesCache";
 import type { TimeClass } from "../../auth/db.types";
 import type { HistorySnapshot, HistoryFile, AnchorTrail, GoalProgress, Goal } from "../../types";
 import { readEntries } from "../../session/journal";
@@ -203,12 +203,15 @@ export function useTavoloData(): TavoloData {
   const { dataVersion } = useOnboardingRun();
 
   const [pmLite, setPmLite] = useState<PlayerModelLite | null>(null);
-  const [aggregates, setAggregates] = useState<Aggregates | null>(null);
+  // Start from the cache when it matches: the lesson's pages mount one after the
+  // other and must not flash "Un attimo" on every step for data already in hand.
+  const cachedAtMount = user ? getCachedAggregates(user.id, dataVersion) : null;
+  const [aggregates, setAggregates] = useState<Aggregates | null>(cachedAtMount);
   const [llmVoice, setLlmVoice] = useState<string | null | undefined>(undefined);
   const [llmGeneratedAt, setLlmGeneratedAt] = useState<string | undefined>(undefined);
   const [letterSeenBefore, setLetterSeenBefore] = useState(false);
   const [historySnapshots, setHistorySnapshots] = useState<HistorySnapshot[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cachedAtMount === null);
   const [error, setError] = useState<string | null>(null);
   // Which dataVersion the currently-loaded data matches. When it lags behind
   // dataVersion a reload is in flight (computed synchronously into `reloading`).
@@ -238,7 +241,9 @@ export function useTavoloData(): TavoloData {
         ]);
         if (cancelled) return;
         setPmLite(pm);
-        setAggregates(agg);
+        // Keep the cached object when the content is unchanged, so memoized
+        // lessons and their effects (film downloads) do not re-run for nothing.
+        setAggregates((current) => current && agg && JSON.stringify(current) === JSON.stringify(agg) ? current : agg);
         if (agg) setCachedAggregates(user.id, dataVersion, agg);
         const voice = brief?.voice_message ?? null;
         setLlmVoice(voice);

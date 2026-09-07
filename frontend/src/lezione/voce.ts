@@ -10,7 +10,7 @@ import { Chess } from "chess.js";
 import type { Lezione, LezioneAggregati, Momento } from "./lezione";
 import type { PatternKind, PersonalPattern } from "../pipeline/personalPatterns";
 import type { PatternLearning } from "../pipeline/patternLearning";
-import { buildMoveReason, pieceName, type MoveFacts } from "../session/moveReason";
+import { buildMoveReason, pieceName, pieceIsFeminine, pieceWithArticle, type MoveFacts } from "../session/moveReason";
 import { buildLevelCompare } from "../session/levelCompare";
 import { tr, getLang } from "../i18n/lang";
 
@@ -31,6 +31,10 @@ export function sanItaliano(san: string): string {
 /** Italianizes SAN tokens inside a prose string (e.g. "Nf3 mette al sicuro" -> "Cf3 mette al sicuro"). */
 export function sanItalianoNelTesto(text: string): string {
   return text.replace(/\b([NBRQK])([a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?)/g, (_all, piece: string, rest: string) => sanItaliano(piece + rest));
+}
+
+function capitalizza(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function formatClock(seconds: number): string {
@@ -79,7 +83,7 @@ function clausolaErrori(kind: PatternKind, n: number): string {
     case "hanging_piece": return tr(`un pezzo in presa ti e' sfuggito ${volte}`, `a hanging piece slipped past you ${volte}`);
     case "fork": return tr(`un doppio attacco ti e' sfuggito ${volte}`, `a double attack slipped past you ${volte}`);
     case "back_rank": return tr(`hai lasciato l'ultima traversa scoperta ${volte}`, `you left your back rank exposed ${volte}`);
-    case "narrow_choice": return tr(`hai mosso in fretta dove c'erano due candidate vere, ${volte}`, `you rushed where there were two real candidates, ${volte}`);
+    case "narrow_choice": return tr(`hai sbagliato dove c'erano due candidate vere, ${volte}`, `you went wrong where there were two real candidates, ${volte}`);
     case "time_reserve": return tr(`hai mosso in pochi secondi con il tempo in riserva ${volte}`, `you moved in a few seconds with time in reserve ${volte}`);
     case "time_pressure": return tr(`hai sbagliato con l'orologio addosso ${volte}`, `you erred with the clock closing in ${volte}`);
     case "keep_advantage": return tr(`ti e' scappato un vantaggio ${volte}`, `an advantage slipped away ${volte}`);
@@ -228,7 +232,7 @@ export function fraseFermata(facts: MoveFacts | null): string {
   const prefix = tr("Aspetta.", "Wait.");
   const fatto = facts?.hung_piece
     ? tr(
-        `Il ${pieceName(facts.hung_piece.type)} in ${facts.hung_piece.square}: chi lo difende?`,
+        `${capitalizza(pieceWithArticle(facts.hung_piece.type))} in ${facts.hung_piece.square}: chi ${pieceIsFeminine(facts.hung_piece.type) ? "la" : "lo"} difende?`,
         `Your ${pieceName(facts.hung_piece.type)} on ${facts.hung_piece.square}: who defends it?`,
       )
     : facts?.punishment
@@ -250,7 +254,7 @@ export function fraseFermata(facts: MoveFacts | null): string {
 export function fraseMinaccia(facts: MoveFacts | null): string | null {
   if (facts?.punishment && facts?.hung_piece) {
     return tr(
-      `Dopo ${sanItaliano(facts.punishment.capture_san)} il ${pieceName(facts.hung_piece.type)} lo perdi gratis.`,
+      `Dopo ${sanItaliano(facts.punishment.capture_san)} ${pieceWithArticle(facts.hung_piece.type)} ${pieceIsFeminine(facts.hung_piece.type) ? "la" : "lo"} perdi gratis.`,
       `After ${facts.punishment.capture_san} you lose the ${pieceName(facts.hung_piece.type)} for nothing.`,
     );
   }
@@ -342,8 +346,8 @@ function clausolaQuadernoPattern(pattern: PersonalPattern, aggregati: LezioneAgg
       );
     case "narrow_choice":
       return tr(
-        `${errors} volte su ${opportunities} dove c'erano due candidate vere.`,
-        `${errors} times out of ${opportunities} where there were two real candidates.`,
+        `Hai sbagliato ${errors} volte su ${opportunities} dove c'erano due candidate vere.`,
+        `You went wrong ${errors} times out of ${opportunities} where there were two real candidates.`,
       );
     default: {
       const volte = errors === 1 ? tr("una volta", "once") : tr(`${errors} volte`, `${errors} times`);

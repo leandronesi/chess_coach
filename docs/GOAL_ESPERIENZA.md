@@ -198,7 +198,7 @@ Ritorno funziona da telefono su dati reali e il referee e' verde.
 - [ ] Voce strato 2 (LLM sotto referee): solo se lnesi giudica lo strato 1 non sharp.
 - [x] Quaderno backstage: prove come storia, numeri a richiesta, progressi in una frase.
 - [x] Rimozione della barra tab e delle superfici rese irraggiungibili.
-- [ ] Verifica su corpus reale con `verify-full-journey.mjs` esteso al nuovo percorso.
+- [x] Verifica su corpus reale con `verify-full-journey.mjs` esteso al nuovo percorso (PASS il 7 settembre 2026, vedi evidenze slice 5).
 
 La verifica finale cita prove per ogni riga. Una build verde da sola non basta.
 
@@ -411,3 +411,82 @@ La verifica finale cita prove per ogni riga. Una build verde da sola non basta.
   settimanali dell'onboarding al posto della cadenza letta (ora "Leggo le tue
   partite blitz." o "rapid"). Rieseguiti build con referee (18 scene verdi),
   Vitest 21 file e 207 test, Playwright 14 test, foundation 17/17.
+
+## Evidenze di implementazione, slice 5: la verifica su corpus reale
+
+- `frontend/scripts/verify-full-journey.mjs` riscritto sul nuovo percorso: account
+  temporaneo creato con l'accesso amministrativo gia' configurato, profilo pubblico
+  `erik` (blitz, obiettivo 2100), Chrome a 390 px con Stockfish e Maia veri,
+  pulizia di account e file privati alla fine. Sul percorso principale applica lo
+  stesso censimento del referee (una CTA, al massimo tre altri controlli,
+  scacchiera nel primo viewport, Apertura e Chiusura in un viewport) alle
+  schermate con i dati veri. Esito e tappe in
+  `frontend/.local-validation/full-journey-summary.json`, screenshot in
+  `frontend/.local-validation/ux/slice-5/`.
+- Quattro esecuzioni il 7 settembre 2026. Le prime tre hanno trovato difetti
+  veri, corretti prima della quarta: (1) la prima lezione, con dieci partite,
+  sceglieva un pattern senza errori e diceva "hai mosso in pochi secondi con il
+  tempo in riserva 0 volte": ora la lezione richiede almeno un errore reale
+  (ricorrente prima, osservato poi), e senza errori l'Apertura lo dice ("Ho letto
+  N partite e non ci ho trovato un errore che torna"); (2) "Il tuo torre in g6":
+  articoli e pronomi ora seguono il genere del pezzo (la torre, la donna) in
+  `moveReason.ts` e nella fermata; (3) ogni cambio di pagina riscaricava gli
+  aggregati e mostrava "Un attimo": ora il hook parte dalla cache quando
+  coincide; (4) il film del Guardo e' legato all'identita' del momento, cosi'
+  cambiando momento non si vede per un istante il film precedente; (5) la frase
+  delle scelte delicate diceva "in fretta" per errori non per forza veloci:
+  ora "hai sbagliato dove c'erano due candidate vere". Nello script: attesa del
+  momento nuovo prima di leggere, attesa della Chiusura, R ammessa come lettera
+  del re in italiano.
+- Quarta esecuzione, dalle 07:57 alle 08:12 UTC, tutte le tappe superate:
+  accesso con corpus vuoto; prima lezione aperta con 10 partite analizzate
+  mentre le altre 90 giravano ("Eccoti. In 6 partite hai sbagliato dove c'erano
+  due candidate vere, 3 volte. 3 di quelle in pochi secondi"); corpus completo
+  di 100 partite con 400 posizioni Maia e sei pattern ricorrenti; Apertura
+  "Eccoti. In 58 partite ti e' scappato un vantaggio 78 volte. 14 di quelle in
+  pochi secondi: la mano che parte prima degli occhi. Oggi ne guardiamo 3."; tre
+  Guardo su tre partite diverse con film, contesto e verdetto ("Venerdi' 3
+  giugno, contro un 1711. Mossa 28, avevi 1:51 sull'orologio." / "Hai mosso Rh5
+  in 1.9 secondi. La tua torre in g6 era in presa." con la punizione Cxg6 nel
+  film); Gioco dal momento con 0:09 sull'orologio originale, mossa del motore
+  giocata a tocco, risposta della policy Maia al livello 2100 (39. Dxg7+),
+  fonte dichiarata in una riga; Chiusura "Bene cosi'. Oggi ti sei fermato prima
+  di muovere. Nelle prossime dieci partite guardo una cosa sola: se, in
+  vantaggio, controlli il controgioco. A domani."; un solo tentativo salvato
+  nell'account (verdetto perfect, 487 ms, esito fermato, contesto exercise
+  gioco); Apertura completata con "Rivediamola", anche dopo il reload; Quaderno
+  con le righe dei pattern come frasi, dettaglio con le prove, prova in
+  lettura senza CTA. Nessun errore di pagina. Account e file rimossi.
+- Rifiniture dopo il run reale: le righe del Quaderno con zero errori non si
+  mostrano; la striscia delle mosse scorre sul fotogramma corrente, che a 390 px
+  restava tagliato.
+
+## Verifica finale del GOAL
+
+Ogni riga del §7 con la sua prova:
+
+- Fase 0: canvas approvato da lnesi il 6 settembre ("mi torna, approvato, vai").
+- Referee: rosso su nove scene legacy il 7 settembre (slice 1), verde su sei
+  scene a 360/390/430 (slice 3 e 4), dentro `npm run build` e nella CI (slice 4);
+  lo stesso censimento verde sulle schermate con dati veri (slice 5).
+- Apertura e Chiusura: una frase vera e un bottone, in un viewport, con i numeri
+  del corpus reale (slice 2 e 5).
+- Guardo: film dalle analisi salvate, verdetto in due frasi con il perche' vero,
+  scacchiera intera nel primo viewport (slice 2 e 5).
+- Gioco: partita contro la policy Maia al livello obiettivo con orologio
+  originale, eval bar, lista mosse, Ripensaci, fermata sul momento; tentativo
+  salvato una volta con identita' stabile (slice 3 e 5).
+- Voce strato 2: non costruita, per decisione del goal: entra solo se lnesi
+  giudica lo strato 1 non abbastanza sharp dopo averlo letto su dati suoi.
+- Quaderno: prove come storia, numeri e confronto di livello a richiesta,
+  progressi in una frase con denominatore (slice 4 e 5).
+- Rimozione: barra tab, superfici vecchie e dipendenze orfane tolte, bundle da
+  1856 a 901 kB (slice 4).
+- Corpus reale: PASS del 7 settembre 2026 (slice 5).
+
+Resta fuori, come follow-up e non come lavoro di questo goal: `README.md` e
+`docs/OOUX_IA.md` descrivono ancora le superfici vecchie; il ramo "Stockfish di
+riserva" non e' coperto dai test browser; un reload nella finestra tra la mossa
+del momento e il verdetto riprende senza valutare quel tentativo; l'orologio
+originale puo' partire da pochi secondi (nel run reale 0:09) e va giudicato da
+lnesi se va bene cosi' o se serve un minimo.

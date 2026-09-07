@@ -4,7 +4,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { useTavoloData } from "../tavolo/useTavoloData";
 import { loadPatternAttempts } from "../../patternLearningStore";
 import { buildPatternLearning, type LearningAttempt } from "../../pipeline/patternLearning";
-import { buildLezione, type Lezione } from "../../lezione/lezione";
+import { buildLezione, motivoLezioneAssente, type Lezione, type MotivoLezioneAssente } from "../../lezione/lezione";
 import { fraseApertura, fraseRitorno, fraseChiusura } from "../../lezione/voce";
 import { readLezioneProgress, writeLezioneProgress, todayLocal, isCompletedToday, type LezioneProgress } from "../../lezione/progress";
 import { LezioneShell } from "./LezioneShell";
@@ -18,6 +18,9 @@ export interface AperturaViewProps {
   loading: boolean;
   error: boolean;
   lezione: Lezione | null;
+  /** Why there is no lesson, when lezione is null. */
+  assenza?: MotivoLezioneAssente;
+  gamesAnalyzed?: number | null;
   progress: LezioneProgress | null;
   refreshing: boolean;
   refreshError: string | null;
@@ -28,7 +31,7 @@ export interface AperturaViewProps {
 }
 
 /** Pure presentation — the same lezione/progress shape the page below builds from real data, or a dev preview builds synthetically. */
-export function AperturaView({ loading, error, lezione, progress, refreshing, refreshError, onSediamoci, onRivediamola, onAggiorna, onRiprova }: AperturaViewProps) {
+export function AperturaView({ loading, error, lezione, assenza, gamesAnalyzed, progress, refreshing, refreshError, onSediamoci, onRivediamola, onAggiorna, onRiprova }: AperturaViewProps) {
   let voice: string;
   let meta: string | null = null;
   let footer: ReactNode = null;
@@ -39,7 +42,11 @@ export function AperturaView({ loading, error, lezione, progress, refreshing, re
     voice = tr("Non riesco a leggere le tue partite adesso. Controlliamo la connessione.", "I cannot read your games right now. Let's check the connection.");
     footer = <button type="button" className="lezione-cta" data-cta="primary" onClick={onRiprova}>{tr("Riprova", "Try again")}</button>;
   } else if (!lezione) {
-    voice = tr("Non ho ancora partite da leggere.", "I do not have any games to read yet.");
+    voice = assenza === "senza_errori"
+      ? (gamesAnalyzed
+        ? tr(`Ho letto ${gamesAnalyzed} partite e non ci ho trovato un errore che torna. Gioca ancora un po', poi torna qui.`, `I read ${gamesAnalyzed} games and found no recurring mistake. Play a little more, then come back.`)
+        : tr("Ho letto le tue partite e non ci ho trovato un errore che torna. Gioca ancora un po', poi torna qui.", "I read your games and found no recurring mistake. Play a little more, then come back."))
+      : tr("Non ho ancora partite da leggere.", "I do not have any games to read yet.");
     if (refreshError) meta = refreshError;
     footer = <button type="button" className="lezione-cta" data-cta="primary" disabled={refreshing} onClick={onAggiorna}>
       {refreshing ? tr("Aggiornamento in corso…", "Updating…") : tr("Aggiorna le partite", "Refresh games")}
@@ -117,6 +124,8 @@ export function Apertura() {
     loading={data.loading || (attempts === null && !attemptsError)}
     error={Boolean(data.error)}
     lezione={lezione}
+    assenza={lezione ? undefined : motivoLezioneAssente(report)}
+    gamesAnalyzed={data.aggregates?.games_analyzed ?? null}
     progress={progress}
     refreshing={data.refreshing}
     refreshError={data.refreshError}

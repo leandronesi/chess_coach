@@ -107,6 +107,20 @@ function hasExamples(p: PersonalPattern): boolean {
   return p.examples.length + p.successfulExamples.length > 0;
 }
 
+/** A lesson is about something to work on: it needs at least one real error to show and to replay. */
+function hasErrorExample(p: PersonalPattern): boolean {
+  return p.errors > 0 && p.examples.length > 0;
+}
+
+export type MotivoLezioneAssente = "senza_report" | "senza_partite" | "senza_errori";
+
+/** Why buildLezione returned null, so the Apertura can say the true thing. */
+export function motivoLezioneAssente(report: PersonalPatternReport | null): MotivoLezioneAssente {
+  if (!report) return "senza_report";
+  if (!report.patterns.some(hasExamples)) return "senza_partite";
+  return "senza_errori";
+}
+
 /**
  * Picks the pattern for today. The report's patterns are already sorted by
  * priority, but that sort can put an "insufficient" pattern ahead of an
@@ -117,9 +131,11 @@ function hasExamples(p: PersonalPattern): boolean {
  * pattern. See the final report for this call.
  */
 function pickPattern(report: PersonalPatternReport): { pattern: PersonalPattern; mode: LezioneMode } | null {
-  const top = report.patterns.find((p) => p.evidence !== "insufficient" && hasExamples(p));
+  // Recurring first, then merely observed: both need a real error, never a pattern the player already handles.
+  const top = report.patterns.find((p) => p.evidence === "recurring" && hasErrorExample(p))
+    ?? report.patterns.find((p) => p.evidence === "observed" && hasErrorExample(p));
   if (top) return { pattern: top, mode: "pattern" };
-  const candidates = report.patterns.filter(hasExamples);
+  const candidates = report.patterns.filter(hasErrorExample);
   if (!candidates.length) return null;
   candidates.sort((a, b) => b.errors - a.errors || b.games - a.games || a.id.localeCompare(b.id));
   return { pattern: candidates[0], mode: "momento" };

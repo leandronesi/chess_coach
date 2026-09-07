@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLezione, type BuildLezioneInput, type LezioneAggregati, type Momento } from "../src/lezione/lezione";
+import { buildLezione, motivoLezioneAssente, type BuildLezioneInput, type LezioneAggregati, type Momento } from "../src/lezione/lezione";
 import {
   fraseApertura, fraseContesto, fraseVerdetto, fraseChiusura, fraseRitorno, sanItaliano,
   fraseQuadernoPattern, fraseProvaBreve, fraseQuadernoLearning, fraseQuadernoNessunConfronto,
@@ -114,6 +114,27 @@ describe("buildLezione — selezione", () => {
 
   it("ritorna null senza report", () => {
     expect(buildLezione(input({ report: null }))).toBeNull();
+  });
+
+  it("salta un pattern senza errori anche se viene prima: la lezione e' su qualcosa da lavorare", () => {
+    // Real case from the live run: time_reserve observed on 7 games, 0 errors, only successful examples.
+    const handled = pattern({ id: "time_reserve:a", kind: "time_reserve", evidence: "observed", errors: 0, errorGames: 0,
+      examples: [], successfulExamples: [opportunity({ id: "g1:30", gameId: "g1" })] });
+    const real = pattern({ id: "hanging_piece:a", kind: "hanging_piece", evidence: "observed", errors: 2, errorGames: 2,
+      examples: [opportunity({ id: "g2:25", gameId: "g2" })] });
+    const lezione = buildLezione(input({ report: report({ patterns: [handled, real] }) }));
+    expect(lezione?.pattern.id).toBe("hanging_piece:a");
+    expect(lezione?.momenti[0].esito).toBe("errore");
+  });
+
+  it("senza errori in nessun pattern non c'e' lezione, e il motivo lo dice", () => {
+    const handled = pattern({ id: "fork:a", kind: "fork", evidence: "recurring", errors: 0, errorGames: 0,
+      examples: [], successfulExamples: [opportunity({ id: "g1:30", gameId: "g1" })] });
+    const r = report({ patterns: [handled] });
+    expect(buildLezione(input({ report: r }))).toBeNull();
+    expect(motivoLezioneAssente(r)).toBe("senza_errori");
+    expect(motivoLezioneAssente(report({ patterns: [] }))).toBe("senza_partite");
+    expect(motivoLezioneAssente(null)).toBe("senza_report");
   });
 });
 
@@ -288,7 +309,7 @@ describe("Quaderno — fraseQuadernoPattern (slice 4)", () => {
   it("narrow_choice legge errori su opportunities", () => {
     const p = pattern({ id: "narrow_choice:a", kind: "narrow_choice", opportunities: 12, errors: 5 });
     const agg: LezioneAggregati = { partite: 6, errori: 5, velociConRiserva: null };
-    expect(fraseQuadernoPattern(p, agg)).toBe("5 volte su 12 dove c'erano due candidate vere.");
+    expect(fraseQuadernoPattern(p, agg)).toBe("Hai sbagliato 5 volte su 12 dove c'erano due candidate vere.");
   });
 
   it("evidenza insufficient chiude con la frase sulla scarsita' di occasioni", () => {

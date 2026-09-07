@@ -62,17 +62,19 @@ export function QuadernoView({
     </LezioneShell>;
   }
 
+  // "What keeps happening" is about mistakes: a pattern the player never got wrong is not a row.
+  const shownPatterns = report.patterns.filter((p) => p.errors > 0 && p.examples.length > 0);
   return <LezioneShell variant="backstage" title={tr("Quaderno", "Notebook")}>
     <div className="quaderno-page">
       <p className="quaderno-voce">{fraseQuadernoApertura(gamesAnalyzed)}</p>
 
       <section className="quaderno-section">
         <p className="quaderno-kicker">{tr("Quello che torna", "What keeps happening")}</p>
-        {report.patterns.length === 0 ? (
+        {shownPatterns.length === 0 ? (
           <p className="quaderno-muted">{tr("Non ho ancora niente che torna abbastanza spesso.", "I do not yet have anything that comes up often enough.")}</p>
         ) : (
           <ul className="quaderno-pattern-list">
-            {report.patterns.map((pattern) => {
+            {shownPatterns.map((pattern) => {
               const aggregati = buildQuadernoAggregati(pattern, report, todayPatternId);
               return (
                 <li key={pattern.id}>

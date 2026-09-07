@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useScrollCurrentFrame } from "./useScrollCurrentFrame";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Chess } from "chess.js";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -60,16 +61,20 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti, lettura 
     ? lezione.momenti[n - 1]
     : null;
 
-  const [prevFrames, setPrevFrames] = useState<Frame[]>([]);
-  const [prevOppSquares, setPrevOppSquares] = useState<{ from?: string; to: string } | null>(null);
+  // Film state is keyed by the moment it belongs to: the same route element
+  // serves /guardo/1 and /guardo/2, so a stale film must never be painted under
+  // the next moment while its own is still loading.
+  const [film, setFilm] = useState<{ momentoId: string; frames: Frame[]; oppSquares: { from?: string; to: string } | null } | null>(null);
   const [offset, setOffset] = useState(0);
+  const momentoId = momento?.opportunity.id ?? null;
+  const prevFrames = film && film.momentoId === momentoId ? film.frames : [];
+  const prevOppSquares = film && film.momentoId === momentoId ? film.oppSquares : null;
 
   useEffect(() => {
     setOffset(0);
-    setPrevFrames([]);
-    setPrevOppSquares(null);
     if (!momento || momento.film.kind !== "prev") return;
     let cancelled = false;
+    const id = momento.opportunity.id;
     loadFilm(momento, filmLoader).then((resolved) => {
       if (cancelled || resolved.kind !== "prev") return;
       try {
@@ -82,16 +87,13 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti, lettura 
           frames.push({ fen: board.fen(), label: mv.san });
           last = { from: mv.from, to: mv.to };
         }
-        if (!cancelled) {
-          setPrevFrames(frames);
-          setPrevOppSquares(last);
-        }
+        if (!cancelled) setFilm({ momentoId: id, frames, oppSquares: last });
       } catch {
         // The board already shows "adesso"; a broken replay just means no prior frames.
       }
     });
     return () => { cancelled = true; };
-  }, [momento, filmLoader]);
+  }, [momentoId, momento, filmLoader]);
 
   const facts = useMemo(() => momento ? extractMoveFacts({
     fenBefore: momento.opportunity.fen,
@@ -129,16 +131,20 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti, lettura 
     return to ? { to } : null;
   }, [momento]);
 
+  // Hooks stay above the early returns (their count must not change between renders).
+  const frames = [...prevFrames, ...staticFrames];
+  const nowIndex = prevFrames.length;
+  const absoluteIndex = Math.min(Math.max(0, nowIndex + offset), Math.max(0, frames.length - 1));
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  useScrollCurrentFrame(stripRef, absoluteIndex, frames.length);
+
   if (loading) {
     return <LezioneShell variant="passo" stepLabel="" backTo={lettura?.backTo} backLabel={lettura?.backLabel} onBack={lettura?.onBack}>
       <p className="lezione-status">{tr("Un attimo, guardo le tue partite.", "One moment, I am looking at your games.")}</p>
     </LezioneShell>;
   }
-  if (!lezione || !momento) return <Navigate to={lettura?.backTo ?? "/lezione"} replace />;
+  if (!lezione || !momento || !frames.length) return <Navigate to={lettura?.backTo ?? "/lezione"} replace />;
 
-  const frames = [...prevFrames, ...staticFrames];
-  const nowIndex = prevFrames.length;
-  const absoluteIndex = Math.min(Math.max(0, nowIndex + offset), frames.length - 1);
   const current = frames[absoluteIndex];
   const lastOppSquares = prevOppSquares ?? fallbackOppSquare;
   const goldSquare = facts?.hung_piece?.square ?? null;
@@ -158,7 +164,7 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti, lettura 
   return <LezioneShell variant="passo"
     stepLabel={lettura ? "" : `${n} ${tr("di", "of")} ${lezione.momenti.length}`}
     backTo={lettura?.backTo} backLabel={lettura?.backLabel} onBack={lettura?.onBack}>
-    <div className="lezione-guardo">
+    <div className="lezione-guardo" data-momento={momento.opportunity.id}>
       <p className="lezione-contesto">
         {clockMatch && clockIndex >= 0
           ? <>{contesto.slice(0, clockIndex)}<strong>{clockMatch[0]}</strong>{contesto.slice(clockIndex + clockMatch[0].length)}</>
@@ -174,7 +180,7 @@ export function GuardoView({ loading, lezione, n, filmLoader, onAvanti, lettura 
           disabled={absoluteIndex <= 0} onClick={() => setOffset((v) => v - 1)}>
           <ChevronLeft size={24} strokeWidth={1.8} aria-hidden="true" />
         </button>
-        <div className="lezione-moves-strip">
+        <div className="lezione-moves-strip" ref={stripRef}>
           {frames.map((f, i) => (
             <span key={i} className={i === absoluteIndex ? "lezione-frame lezione-frame--now" : "lezione-frame"}>
               {f.label ? sanItaliano(f.label) : tr("ora", "now")}

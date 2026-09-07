@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useScrollCurrentFrame } from "./useScrollCurrentFrame";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Chess } from "chess.js";
 import { ChevronLeft, ChevronRight, Undo2 } from "lucide-react";
@@ -105,6 +106,8 @@ function GiocoPlaying({ lezione, momento, onFine, deps, autoPlayMoment }: GiocoP
   const partita = usePartita(momento, lezione.profile, lezione.pattern.id, deps);
   const [selected, setSelected] = useState<string | null>(null);
   const [boardPx, setBoardPx] = useState(320);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  useScrollCurrentFrame(stripRef, partita.state.cursor ?? partita.state.moves.length - 1, partita.state.moves.length);
 
   useEffect(() => {
     function measure() {
@@ -280,7 +283,7 @@ function GiocoPlaying({ lezione, momento, onFine, deps, autoPlayMoment }: GiocoP
         <button type="button" className="lezione-moves-btn" aria-label={tr("Mossa precedente", "Previous move")} disabled={backDisabled} onClick={handleBack}>
           <ChevronLeft size={24} strokeWidth={1.8} aria-hidden="true" />
         </button>
-        <div className="lezione-moves-strip">
+        <div className="lezione-moves-strip" ref={stripRef}>
           {partita.state.moves.map((_, i) => (
             <span key={i} className={(partita.state.cursor === null ? i === partita.state.moves.length - 1 : i === partita.state.cursor) ? "lezione-frame lezione-frame--now" : "lezione-frame"}>
               {moveLabel(partita.state, i)}

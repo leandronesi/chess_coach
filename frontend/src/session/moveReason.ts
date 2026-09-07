@@ -49,6 +49,26 @@ const PIECE_VALUES: Record<string, number> = {
 // Called at render time so getLang() always reads the current language.
 // ────────────────────────────────────────────────────────────────────────────
 
+/** Italian grammatical gender of a piece: torre and donna are feminine. */
+export function pieceIsFeminine(pieceType: string): boolean {
+  const t = pieceType.toLowerCase();
+  return t === "r" || t === "q";
+}
+
+/** "il cavallo" / "la torre": the piece name with its definite article (Italian only; English has no gender). */
+export function pieceWithArticle(pieceType: string): string {
+  const name = pieceName(pieceType);
+  if (getLang() === "en") return `the ${name}`;
+  return `${pieceIsFeminine(pieceType) ? "la" : "il"} ${name}`;
+}
+
+/** "il tuo cavallo" / "la tua torre" (Italian only). */
+export function pieceWithYour(pieceType: string): string {
+  const name = pieceName(pieceType);
+  if (getLang() === "en") return `your ${name}`;
+  return `${pieceIsFeminine(pieceType) ? "la tua" : "il tuo"} ${name}`;
+}
+
 export function pieceName(pieceType: string): string {
   const lang = getLang();
   const names: Record<string, { it: string; en: string }> = {
@@ -486,7 +506,7 @@ export function buildMoveReason(input: MoveReasonInput): string | null {
     if (hanging) {
       parts.push(
         tr(
-          `Il tuo ${pieceName(hanging.type)} in ${hanging.square} era in presa.`,
+          `${pieceWithYour(hanging.type).charAt(0).toUpperCase()}${pieceWithYour(hanging.type).slice(1)} in ${hanging.square} era in presa.`,
           `Your ${pieceName(hanging.type)} on ${hanging.square} was there to take.`,
         ),
       );
@@ -502,12 +522,12 @@ export function buildMoveReason(input: MoveReasonInput): string | null {
         if (hanging && bestEffect.savesPiece) {
           parts.push(
             tr(
-              `${best} cattura il ${name} e mette al sicuro il tuo pezzo.`,
+              `${best} cattura ${pieceWithArticle(bestEffect.capturedType)} e mette al sicuro il tuo pezzo.`,
               `${best} takes the ${name} and keeps your piece safe.`,
             ),
           );
         } else {
-          parts.push(tr(`${best} cattura il ${name}.`, `${best} takes the ${name}.`));
+          parts.push(tr(`${best} cattura ${pieceWithArticle(bestEffect.capturedType)}.`, `${best} takes the ${name}.`));
         }
       } else if (hanging && bestEffect.savesPiece) {
         parts.push(
@@ -517,7 +537,7 @@ export function buildMoveReason(input: MoveReasonInput): string | null {
         const movedName = pieceName(bestEffect.bestMovedPieceType);
         parts.push(
           tr(
-            `${best}: il ${movedName} attacca due pezzi insieme.`,
+            `${best}: ${pieceWithArticle(bestEffect.bestMovedPieceType)} attacca due pezzi insieme.`,
             `${best}: the ${movedName} attacks two pieces at once.`,
           ),
         );
